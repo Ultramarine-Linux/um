@@ -1,0 +1,5 @@
+#!/bin/sh
+
+sudo sysctl echo net.ipv4.tcp_mtu_probing=1 | sudo tee /etc/sysctl.d/custom-mtu-probing.conf
+
+sudo systemctl restart systemd-sysctl.service

@@ -1,0 +1,5 @@
+#!/bin/sh
+
+sudo rm -f /etc/sysctl.d/custom-mtu-probing.conf
+
+sudo systemctl restart systemd-sysctl.service

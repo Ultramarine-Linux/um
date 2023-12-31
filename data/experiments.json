@@ -4,5 +4,11 @@
     "name": "uutils",
     "description": "Change the default coreutils to uutils, a non GNU rewrite in Rust",
     "stability": 0
+  },
+  {
+    "id": "mtu-probing",
+    "name": "Enable MTU probing for IPv4",
+    "description": "Enable MTU probing for IPv4, Fixes some quirks with some network setups with some games/applications (e.g. Ubisoft Connect, Minecraft)",
+    "stability": 3
   }
 ]
