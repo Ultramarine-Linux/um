@@ -2,7 +2,8 @@ package util
 
 import (
 	"os"
-	"syscall"
+
+	"golang.org/x/sys/unix"
 )
 
 func SudoIfNeeded(forwardEnv []string) {
@@ -30,7 +31,7 @@ func SudoIfNeeded(forwardEnv []string) {
 	args := append(env, current)
 	args = append(args, os.Args[1:]...)
 
-	if err := syscall.Exec("/usr/bin/sudo", args, os.Environ()); err != nil {
+	if err := unix.Exec("/usr/bin/sudo", args, os.Environ()); err != nil {
 		panic(err)
 	}
 }

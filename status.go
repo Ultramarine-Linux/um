@@ -4,7 +4,8 @@ import (
 	"fmt"
 	"os"
 	"strings"
-	"syscall"
+
+	"golang.org/x/sys/unix"
 
 	"github.com/acobaugh/osrelease"
 	"github.com/charmbracelet/lipgloss"
@@ -27,16 +28,6 @@ var listHeader = lipgloss.NewStyle().
 
 var listItem = lipgloss.NewStyle().PaddingLeft(2).Render
 
-func utsnameSliceToString(s [65]int8) string {
-	runes := make([]rune, len(s))
-
-	for _, b := range s {
-		runes = append(runes, rune(b))
-	}
-
-	return string(runes)
-}
-
 func statusInfo() ([]string, error) {
 	dur, err := uptime.Get()
 	if err != nil {
@@ -44,8 +35,8 @@ func statusInfo() ([]string, error) {
 
 	}
 
-	u := syscall.Utsname{}
-	err = syscall.Uname(&u)
+	u := unix.Utsname{}
+	err = unix.Uname(&u)
 	if err != nil {
 		return nil, err
 	}
@@ -53,7 +44,7 @@ func statusInfo() ([]string, error) {
 	return []string{
 		listHeader("Status"),
 		listItem("Uptime: " + dur.String()),
-		listItem("Kernel: " + utsnameSliceToString(u.Release)),
+		listItem("Kernel: " + string(u.Release[:])),
 		// listItem("Packages: 1000 (dnf)"),
 	}, nil
 }
