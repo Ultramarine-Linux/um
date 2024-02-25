@@ -1,0 +1,21 @@
+#!/bin/sh
+EFIDIR="/boot/efi"
+check_efi() {
+    if [[ -d /sys/firmware/efi ]]; then
+        echo "EFI system found, continuing"
+    else
+        exit 1
+    fi
+}
+check_efi
+
+echo "Removing systemd-boot..."
+sudo bootctl remove
+
+sudo mkdir -p $EFIDIR/$(cat /etc/machine-id)
+
+sudo dnf remove -y sdubby
+sudo dnf -y install grub2-efi-x64 shim-x64 memtest86+ grubby
+
+sudo kernel-install add $(uname -r) /lib/modules/$(uname -r)/vmlinuz
+sudo dnf reinstall kernel-core

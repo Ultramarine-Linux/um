@@ -1,0 +1,26 @@
+#!/bin/sh
+EFIDIR="/boot/efi"
+check_efi() {
+    if [[ -d /sys/firmware/efi ]]; then
+        echo "EFI system found, continuing"
+    else
+        exit 1
+    fi
+}
+check_efi
+
+sudo mkdir -p $EFIDIR/$(cat /etc/machine-id)
+echo "Forcing removal of GRUB..."
+# We don't wanna do -y for now because we want to make sure the user is aware of what's happening.
+
+sudo rm /etc/dnf/protected.d/{grub*,memtest86*,shim*}
+sudo dnf -y --disableplugin=protected_packages remove grubby grub2\* memtest86\* && sudo rm -rf /boot/grub2 && sudo rm -rf /boot/loader
+echo "Installing systemd-boot..."
+sudo dnf install -y systemd-boot-unsigned sdubby
+
+echo "Installed systemd-boot binaries, now reinstalling kernel and bootloader..."
+
+cat /proc/cmdline | cut -d ' ' -f 2- | sudo tee /etc/kernel/cmdline
+sudo bootctl install
+sudo kernel-install add $(uname -r) /lib/modules/$(uname -r)/vmlinuz
+sudo dnf reinstall kernel-core

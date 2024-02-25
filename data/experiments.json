@@ -10,5 +10,11 @@
     "name": "Enable MTU probing for IPv4",
     "description": "Enable MTU probing for IPv4, Fixes some quirks with some network setups with some games/applications (e.g. Ubisoft Connect, Minecraft)",
     "stability": 3
+  },
+  {
+    "id": "systemd-boot",
+    "name": "systemd-boot",
+    "description": "Use systemd-boot as the bootloader",
+    "stability": 3
   }
 ]
