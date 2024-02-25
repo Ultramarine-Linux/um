@@ -1,4 +1,4 @@
-#!/bin/sh
+#!/bin/bash
 EFIDIR="/boot/efi"
 check_efi() {
     if [[ -d /sys/firmware/efi ]]; then
