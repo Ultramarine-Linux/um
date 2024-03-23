@@ -9,7 +9,7 @@ import (
 
 // TODO: pls refactor all of this mess
 
-func main() {
+func runCli() error {
 	app := &cli.App{
 		Name:  "um",
 		Usage: "manage an Ultramarine Linux system",
@@ -38,6 +38,14 @@ func main() {
 	}
 
 	if err := app.Run(os.Args); err != nil {
+		return err
+	}
+
+	return nil
+}
+
+func main() {
+	if err := runCli(); err != nil {
 		log.Fatal(err)
 	}
 }
