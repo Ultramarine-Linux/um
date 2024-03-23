@@ -65,6 +65,7 @@ int get_installed_user_flatpak_count() {
 int get_installed_rpm_count() {
   int res = rpmReadConfigFiles(NULL, NULL);
   if (res == -1) {
+    g_warning("unable to read rpm config files");
     return 0;
   }
 
@@ -72,6 +73,7 @@ int get_installed_rpm_count() {
 
   rpmdbMatchIterator iter = rpmtsInitIterator(ts, RPMTAG_NAME, NULL, 0);
   if (iter == NULL) {
+    g_warning("unable to iterate through rpm db");
     rpmtsFree(ts);
     return 0;
   }
