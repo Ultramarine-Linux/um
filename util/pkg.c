@@ -5,20 +5,61 @@
 #include <rpm/rpmts.h>
 
 int get_installed_system_flatpak_count() {
-  FlatpakInstallation *installation =
-      flatpak_installation_new_system(NULL, NULL);
-  GPtrArray *arr =
-      flatpak_installation_list_installed_refs(installation, NULL, NULL);
+  GError *err = NULL;
 
-  return arr->len;
+  FlatpakInstallation *installation =
+      flatpak_installation_new_system(NULL, &err);
+
+  if (err != NULL) {
+    g_warning("unable to get system flatpak installation: %s\n", err->message);
+    g_error_free(err);
+    return 0;
+  }
+
+  GPtrArray *arr =
+      flatpak_installation_list_installed_refs(installation, NULL, &err);
+
+  if (err != NULL) {
+    g_warning("unable to get installed system flatpak refs: %s\n",
+              err->message);
+    g_error_free(err);
+    return 0;
+  }
+
+  int count = arr->len;
+
+  g_ptr_array_unref(arr);
+  g_clear_object(&installation);
+
+  return count;
 }
 
 int get_installed_user_flatpak_count() {
-  FlatpakInstallation *installation = flatpak_installation_new_user(NULL, NULL);
-  GPtrArray *arr =
-      flatpak_installation_list_installed_refs(installation, NULL, NULL);
+  GError *err = NULL;
 
-  return arr->len;
+  FlatpakInstallation *installation = flatpak_installation_new_user(NULL, &err);
+
+  if (err != NULL) {
+    g_warning("unable to get user flatpak installation: %s\n", err->message);
+    g_error_free(err);
+    return 0;
+  }
+
+  GPtrArray *arr =
+      flatpak_installation_list_installed_refs(installation, NULL, &err);
+
+  if (err != NULL) {
+    g_warning("unable to get installed user flatpak refs: %s\n", err->message);
+    g_error_free(err);
+    return 0;
+  }
+
+  int count = arr->len;
+
+  g_ptr_array_unref(arr);
+  g_clear_object(&installation);
+
+  return count;
 }
 
 int get_installed_rpm_count() {
