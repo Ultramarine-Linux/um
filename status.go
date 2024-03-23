@@ -7,20 +7,17 @@ import (
 
 	"golang.org/x/sys/unix"
 
+	"github.com/Ultramarine-Linux/um/util"
 	"github.com/acobaugh/osrelease"
 	"github.com/charmbracelet/lipgloss"
 	"github.com/jaypipes/ghw"
+
 	"github.com/mackerelio/go-osstat/uptime"
 	"github.com/urfave/cli/v2"
 )
 
-var subtle = lipgloss.AdaptiveColor{Light: "#D9DCCF", Dark: "#383838"}
-
 var listHeader = lipgloss.NewStyle().
 	Foreground(purple).
-	BorderStyle(lipgloss.NormalBorder()).
-	BorderBottom(true).
-	BorderForeground(subtle).
 	MarginRight(2).
 	MarginTop(1).
 	Bold(true).
@@ -41,11 +38,13 @@ func statusInfo() ([]string, error) {
 		return nil, err
 	}
 
+	count := util.GetInstalledRpmCount()
+
 	return []string{
 		listHeader("Status"),
 		listItem("Uptime: " + dur.String()),
 		listItem("Kernel: " + string(u.Release[:])),
-		// listItem("Packages: 1000 (dnf)"),
+		listItem(fmt.Sprintf("Packages: %d (dnf)", count)),
 	}, nil
 }
 
