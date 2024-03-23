@@ -38,13 +38,15 @@ func statusInfo() ([]string, error) {
 		return nil, err
 	}
 
-	count := util.GetInstalledRpmCount()
+	rpmCount := util.GetInstalledRpmCount()
+	systemFlatpakCount := util.GetInstalledSystemFlatpakCount()
+	userFlatpakCount := util.GetInstalledUserFlatpakCount()
 
 	return []string{
 		listHeader("Status"),
 		listItem("Uptime: " + dur.String()),
 		listItem("Kernel: " + string(u.Release[:])),
-		listItem(fmt.Sprintf("Packages: %d (dnf)", count)),
+		listItem(fmt.Sprintf("Packages: %d rpms, %d system flatpaks, %d user flatpaks", rpmCount, systemFlatpakCount, userFlatpakCount)),
 	}, nil
 }
 
