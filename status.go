@@ -88,7 +88,7 @@ func gatherHwInfo() (result []string, err error) {
 		listHeader("Hardware"),
 	}
 
-	baseboard, err := ghw.Baseboard()
+	baseboard, err := ghw.Baseboard(ghw.WithDisableWarnings())
 	if err != nil {
 		fmt.Printf("Error getting baseboard info: %v", err)
 	}
