@@ -88,6 +88,13 @@ func gatherHwInfo() (result []string, err error) {
 		listHeader("Hardware"),
 	}
 
+	baseboard, err := ghw.Baseboard()
+	if err != nil {
+		fmt.Printf("Error getting baseboard info: %v", err)
+	}
+	result = append(result, listItem(fmt.Sprintf("Vendor: %s", baseboard.Vendor)))
+	result = append(result, listItem(fmt.Sprintf("Product: %s", baseboard.Product)))
+
 	for i, processor := range cpu.Processors {
 		result = append(result, listItem(fmt.Sprintf("CPU%d: %s", i, processor.Model)))
 	}
