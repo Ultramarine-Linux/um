@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"math"
 	"os"
+	"runtime"
 	"strings"
 
 	"golang.org/x/sys/unix"
@@ -117,7 +118,7 @@ func gatherHwInfo() (result []string, err error) {
 	result = append(result, listItem(fmt.Sprintf("Memory: %s (physical), %s (usuable)", tpbs, tubs)))
 
 	for i, processor := range cpu.Processors {
-		result = append(result, listItem(fmt.Sprintf("CPU%d: %s", i, processor.Model)))
+		result = append(result, listItem(fmt.Sprintf("CPU%d: %s (%s)", i, processor.Model, runtime.GOARCH)))
 	}
 
 	for i, card := range gpu.GraphicsCards {
