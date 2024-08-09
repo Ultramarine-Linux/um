@@ -12,6 +12,12 @@ require (
 )
 
 require (
+	github.com/Wifx/gonetworkmanager v0.5.0 // indirect
+	github.com/Wifx/gonetworkmanager/v2 v2.1.0 // indirect
+	github.com/godbus/dbus/v5 v5.1.0 // indirect
+)
+
+require (
 	github.com/StackExchange/wmi v1.2.1 // indirect
 	github.com/alecthomas/chroma v0.10.0 // indirect
 	github.com/atotto/clipboard v0.1.4 // indirect

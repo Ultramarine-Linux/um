@@ -17,6 +17,8 @@ import (
 
 	"github.com/mackerelio/go-osstat/uptime"
 	"github.com/urfave/cli/v2"
+
+	"github.com/Wifx/gonetworkmanager/v2"
 )
 
 var listHeader = lipgloss.NewStyle().
@@ -27,6 +29,61 @@ var listHeader = lipgloss.NewStyle().
 	Render
 
 var listItem = lipgloss.NewStyle().PaddingLeft(2).Render
+
+func networkInfo() ([]string, error) {
+	nm, err := gonetworkmanager.NewNetworkManager()
+	if err != nil {
+		return nil, err
+	}
+
+	devices, err := nm.GetPropertyAllDevices()
+	if err != nil {
+		return nil, err
+	}
+
+	devicesInfo := []string{
+		listHeader("Network"),
+	}
+
+	for _, device := range devices {
+		deviceInterface, err := device.GetPropertyInterface()
+		if err != nil {
+			fmt.Println(err.Error())
+			continue
+		}
+		connection, err := device.GetPropertyActiveConnection()
+		if err != nil {
+			fmt.Println(err.Error())
+			continue
+		}
+		if connection == nil {
+			continue
+		}
+
+		status, err := connection.GetPropertyState()
+		if err != nil {
+			fmt.Println(err.Error())
+			continue
+		}
+
+		proptype, err := connection.GetPropertyType()
+		if err != nil {
+			fmt.Println(err.Error())
+			continue
+		}
+
+		statusString := ""
+		switch status {
+		case gonetworkmanager.NmActiveConnectionStateActivated:
+			statusString = "Connected"
+		default:
+			statusString = "Unknown"
+		}
+		devicesInfo = append(devicesInfo, listItem(fmt.Sprintf("%s (%s): %s", deviceInterface, proptype, statusString)))
+	}
+
+	return devicesInfo, nil
+}
 
 func statusInfo() ([]string, error) {
 	dur, err := uptime.Get()
@@ -172,6 +229,12 @@ func status(c *cli.Context) error {
 		return err
 	}
 	fmt.Println(lipgloss.JoinVertical(lipgloss.Left, statusinfo...))
+
+	networkinfo, err := networkInfo()
+	if err != nil {
+		return err
+	}
+	fmt.Println(lipgloss.JoinVertical(lipgloss.Left, networkinfo...))
 
 	return nil
 }
