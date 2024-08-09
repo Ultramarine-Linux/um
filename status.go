@@ -2,6 +2,7 @@ package main
 
 import (
 	"fmt"
+	"math"
 	"os"
 	"strings"
 
@@ -11,6 +12,7 @@ import (
 	"github.com/acobaugh/osrelease"
 	"github.com/charmbracelet/lipgloss"
 	"github.com/jaypipes/ghw"
+	"github.com/jaypipes/ghw/pkg/unitutil"
 
 	"github.com/mackerelio/go-osstat/uptime"
 	"github.com/urfave/cli/v2"
@@ -94,6 +96,25 @@ func gatherHwInfo() (result []string, err error) {
 	}
 	result = append(result, listItem(fmt.Sprintf("Vendor: %s", baseboard.Vendor)))
 	result = append(result, listItem(fmt.Sprintf("Product: %s", baseboard.Product)))
+
+	memory, err := ghw.Memory()
+	if err != nil {
+		fmt.Printf("Error getting baseboard info: %v", err)
+	}
+
+	// from https://github.com/jaypipes/ghw/blob/main/pkg/memory/memory.go#L47
+	// there is probably a better way to do this
+	tpb := memory.TotalPhysicalBytes
+	unit, unitStr := unitutil.AmountString(tpb)
+	tpb = int64(math.Ceil(float64(memory.TotalPhysicalBytes) / float64(unit)))
+	tpbs := fmt.Sprintf("%d%s", tpb, unitStr)
+
+	tub := memory.TotalUsableBytes
+	unit, unitStr = unitutil.AmountString(tub)
+	tub = int64(math.Ceil(float64(memory.TotalUsableBytes) / float64(unit)))
+	tubs := fmt.Sprintf("%d%s", tub, unitStr)
+
+	result = append(result, listItem(fmt.Sprintf("Memory: %s (physical), %s (usuable)", tpbs, tubs)))
 
 	for i, processor := range cpu.Processors {
 		result = append(result, listItem(fmt.Sprintf("CPU%d: %s", i, processor.Model)))
