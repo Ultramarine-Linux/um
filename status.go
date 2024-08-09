@@ -13,6 +13,7 @@ import (
 	"github.com/charmbracelet/lipgloss"
 	"github.com/jaypipes/ghw"
 
+	mem "github.com/mackerelio/go-osstat/memory"
 	"github.com/mackerelio/go-osstat/uptime"
 	"github.com/urfave/cli/v2"
 
@@ -155,20 +156,37 @@ func gatherHwInfo() (result []string, err error) {
 
 	memory, err := ghw.Memory()
 	if err != nil {
-		fmt.Printf("Error getting baseboard info: %v", err)
+		return nil, err
+	}
+
+	memoryStats, err := mem.Get()
+	if err != nil {
+		return nil, err
 	}
 
 	result = append(result, listItem(fmt.Sprintf("Memory: %s (physical), %s (usuable)",
-		util.FormatBytes(memory.TotalPhysicalBytes),
-		util.FormatBytes(memory.TotalUsableBytes))))
+		util.FormatBytes(int64(memory.TotalPhysicalBytes)),
+		util.FormatBytes(int64(memory.TotalUsableBytes)))))
+
+	result = append(result, listItem(fmt.Sprintf("Swap: %s", util.FormatBytes(int64(memoryStats.SwapTotal)))))
 
 	for i, processor := range cpu.Processors {
-		result = append(result, listItem(fmt.Sprintf("CPU%d: %s (%s)", i, processor.Model, runtime.GOARCH)))
+		title := "CPU"
+		if len(cpu.Processors) > 1 {
+			title = title + string(i)
+		}
+
+		result = append(result, listItem(fmt.Sprintf("%s: %s (%s)", title, processor.Model, runtime.GOARCH)))
 	}
 
 	for i, card := range gpu.GraphicsCards {
-		result = append(result, listItem(fmt.Sprintf("GPU%d: %s", i, card.DeviceInfo.Product.Name)))
-		result = append(result, listItem(fmt.Sprintf("GPU%d Driver: %s", i, card.DeviceInfo.Driver))) //?
+		title := "GPU"
+		if len(cpu.Processors) > 1 {
+			title = title + string(i)
+		}
+
+		result = append(result, listItem(fmt.Sprintf("%s: %s", title, card.DeviceInfo.Product.Name)))
+		result = append(result, listItem(fmt.Sprintf("%s Driver: %s", title, card.DeviceInfo.Driver))) //?
 	}
 
 	var stat unix.Statfs_t
@@ -176,6 +194,48 @@ func gatherHwInfo() (result []string, err error) {
 	unix.Statfs(wd, &stat)
 	diskFree := int64(stat.Bavail) * int64(stat.Bsize)
 	result = append(result, listItem(fmt.Sprintf("Disk Free: %s", util.FormatBytes(diskFree))))
+
+	block, err := ghw.Block()
+	if err != nil {
+		return nil, err
+	}
+
+	for _, disk := range block.Disks {
+		for _, part := range disk.Partitions {
+			if part.MountPoint == "/" {
+				result = append(result, listItem(fmt.Sprintf("Disk Type: %s", disk.StorageController.String())))
+				result = append(result, listItem(fmt.Sprintf("Filesystem: %s", part.Type)))
+			}
+		}
+	}
+
+	return
+}
+
+func gatherDiskInfo() (result []string, err error) {
+	result = []string{
+		listHeader("Disk"),
+	}
+
+	block, err := ghw.Block()
+	if err != nil {
+		return nil, err
+	}
+
+	for i, disk := range block.Disks {
+		if disk.BusPath == "unknown" {
+			continue
+		}
+
+		title := "Disk"
+		if len(block.Disks) > 1 {
+			title = title + string(i)
+		}
+
+		result = append(result, listItem(fmt.Sprintf("%s: %s (%s)", title, disk.Model, disk.Name)))
+		result = append(result, listItem(fmt.Sprintf("%s Type: %s", title, disk.DriveType.String())))
+		result = append(result, listItem(fmt.Sprintf("%s Controler: %s", title, disk.StorageController.String())))
+	}
 
 	return
 }
@@ -211,6 +271,12 @@ func status(c *cli.Context) error {
 		return err
 	}
 	fmt.Println(lipgloss.JoinVertical(lipgloss.Left, hwinfo...))
+
+	diskinfo, err := gatherDiskInfo()
+	if err != nil {
+		return err
+	}
+	fmt.Println(lipgloss.JoinVertical(lipgloss.Left, diskinfo...))
 
 	desktopinfo, err := gatherDesktop()
 	if err != nil {
