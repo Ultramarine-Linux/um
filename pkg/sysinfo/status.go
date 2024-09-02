@@ -2,6 +2,7 @@ package sysinfo
 
 import (
 	"os"
+	"strings"
 	"time"
 
 	"github.com/jaypipes/ghw"
@@ -50,7 +51,7 @@ func GatherStatus() (*Status, error) {
 
 	return &Status{
 		Uptime:         dur,
-		Kernel:         string(u.Release[:]),
+		Kernel:         strings.Trim(string(u.Release[:]), "\u0000"),
 		RootDiskFree:   diskFree,
 		RootFilesystem: rootFilesystem,
 	}, err
