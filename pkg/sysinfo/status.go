@@ -11,10 +11,10 @@ import (
 )
 
 type Status struct {
-	Uptime         time.Duration
-	Kernel         string
-	RootDiskFree   uint64
-	RootFilesystem string
+	Uptime         time.Duration `json:"uptime"`
+	Kernel         string        `json:"kernel"`
+	RootDiskFree   uint64        `json:"root_disk_free"`
+	RootFilesystem string        `json:"root_filesystem"`
 }
 
 func GatherStatus() (*Status, error) {

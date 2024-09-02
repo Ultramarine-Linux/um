@@ -22,8 +22,8 @@ func (dp DisplayProtocol) String() string {
 }
 
 type Desktop struct {
-	Name     string
-	Protocol DisplayProtocol
+	Name     string          `json:"name"`
+	Protocol DisplayProtocol `json:"protocol"`
 }
 
 func GatherDesktop() (*Desktop, error) {

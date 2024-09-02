@@ -5,10 +5,10 @@ import (
 )
 
 type Disk struct {
-	Model      string
-	Name       string
-	Type       string
-	Controller string
+	Model      string `json:"model"`
+	Name       string `json:"name"`
+	Type       string `json:"type"`
+	Controller string `json:"controller"`
 }
 
 func GatherDisks() ([]Disk, error) {
@@ -34,8 +34,3 @@ func GatherDisks() ([]Disk, error) {
 
 	return disks, nil
 }
-
-type RootDisk struct {
-}
-
-func GatherRootDiskInfo() {}

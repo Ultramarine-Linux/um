@@ -8,8 +8,8 @@ import (
 )
 
 type GPU struct {
-	Name   string
-	Driver string
+	Name   string `json:"name"`
+	Driver string `json:"driver"`
 }
 
 func GatherGPUs() ([]GPU, error) {
@@ -31,8 +31,8 @@ func GatherGPUs() ([]GPU, error) {
 }
 
 type CPU struct {
-	Model string
-	Arch  string
+	Model string `json:"model"`
+	Arch  string `json:"arch"`
 }
 
 func GatherCPUs() ([]CPU, error) {
@@ -54,15 +54,13 @@ func GatherCPUs() ([]CPU, error) {
 }
 
 type Hardware struct {
-	Vendor         string
-	Product        string
-	CPUs           []CPU
-	GPUs           []GPU
-	PhysicalMemory uint64
-	UsableMemory   uint64
-	Swap           uint64
-	// RootFree       diskFree
-	// RootFS
+	Vendor         string `json:"vendor"`
+	Product        string `json:"product"`
+	CPUs           []CPU  `json:"cpus"`
+	GPUs           []GPU  `json:"gpus"`
+	PhysicalMemory uint64 `json:"physical_memory"`
+	UsableMemory   uint64 `json:"usable_memory"`
+	Swap           uint64 `json:"swap"`
 }
 
 func GatherHardware() (*Hardware, error) {

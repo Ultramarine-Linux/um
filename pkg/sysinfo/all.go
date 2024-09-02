@@ -1,13 +1,13 @@
 package sysinfo
 
 type All struct {
-	Desktop        Desktop
-	Disks          []Disk
-	Hardware       Hardware
-	NetworkDevices []NetworkDevice
-	OS             OS
-	Packages       Packages
-	Status         Status
+	Desktop        Desktop         `json:"desktop"`
+	Disks          []Disk          `json:"disks"`
+	Hardware       Hardware        `json:"hardware"`
+	NetworkDevices []NetworkDevice `json:"network_devices"`
+	OS             OS              `json:"os"`
+	Packages       Packages        `json:"packages"`
+	Status         Status          `json:"status"`
 }
 
 func GatherAll() (*All, error) {

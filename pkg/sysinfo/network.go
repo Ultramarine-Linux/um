@@ -5,9 +5,9 @@ import (
 )
 
 type NetworkDevice struct {
-	Interface string
-	Type      string
-	Connected bool
+	Interface string `json:"interface"`
+	Type      string `json:"type"`
+	Connected bool   `json:"connected"`
 }
 
 func GatherNetworkDevices() ([]NetworkDevice, error) {

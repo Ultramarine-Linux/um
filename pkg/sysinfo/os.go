@@ -7,10 +7,10 @@ import (
 )
 
 type OS struct {
-	Name    string
-	Version string
-	Variant string
-	Atomic  bool
+	Name    string `json:"name"`
+	Version string `json:"version"`
+	Variant string `json:"variant"`
+	Atomic  bool   `json:"atomic"`
 }
 
 func GatherOS() (*OS, error) {

@@ -17,9 +17,9 @@ func getInstalledRpmCount() int {
 }
 
 type Packages struct {
-	RPMCount           int
-	SystemFlatpakCount int
-	UserFlatpakCount   int
+	RPMCount           int `json:"rpm_count"`
+	SystemFlatpakCount int `json:"system_flatpak_count"`
+	UserFlatpakCount   int `json:"user_flatpak_count"`
 }
 
 func GatherPackages() (*Packages, error) {
