@@ -26,7 +26,7 @@ type Desktop struct {
 	Protocol DisplayProtocol
 }
 
-func GatherDesktop() (Desktop, error) {
+func GatherDesktop() (*Desktop, error) {
 	var protocol DisplayProtocol
 
 	if s := os.Getenv("WAYLAND_DISPLAY"); s != "" {
@@ -37,7 +37,7 @@ func GatherDesktop() (Desktop, error) {
 		protocol = Unknown
 	}
 
-	return Desktop{
+	return &Desktop{
 		Name:     os.Getenv("XDG_CURRENT_DESKTOP"),
 		Protocol: protocol,
 	}, nil
