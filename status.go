@@ -86,7 +86,7 @@ func osSection() (result []string, err error) {
 	}, nil
 }
 
-func gatherHwInfo() (result []string, err error) {
+func hwSection() (result []string, err error) {
 	hardware, err := sysinfo.GatherHardware()
 	if err != nil {
 		return nil, err
@@ -166,41 +166,41 @@ func desktopSection() (result []string, err error) {
 }
 
 func status(c *cli.Context) error {
-	osinfo, err := osSection()
+	os, err := osSection()
 	if err != nil {
 		return err
 	}
-	fmt.Println(lipgloss.JoinVertical(lipgloss.Left, osinfo...))
+	fmt.Println(lipgloss.JoinVertical(lipgloss.Left, os...))
 
-	hwinfo, err := gatherHwInfo()
+	hw, err := hwSection()
 	if err != nil {
 		return err
 	}
-	fmt.Println(lipgloss.JoinVertical(lipgloss.Left, hwinfo...))
+	fmt.Println(lipgloss.JoinVertical(lipgloss.Left, hw...))
 
-	diskinfo, err := disksSection()
+	disk, err := disksSection()
 	if err != nil {
 		return err
 	}
-	fmt.Println(lipgloss.JoinVertical(lipgloss.Left, diskinfo...))
+	fmt.Println(lipgloss.JoinVertical(lipgloss.Left, disk...))
 
-	desktopinfo, err := desktopSection()
+	desktop, err := desktopSection()
 	if err != nil {
 		return err
 	}
-	fmt.Println(lipgloss.JoinVertical(lipgloss.Left, desktopinfo...))
+	fmt.Println(lipgloss.JoinVertical(lipgloss.Left, desktop...))
 
-	statusinfo, err := statusSection()
+	status, err := statusSection()
 	if err != nil {
 		return err
 	}
-	fmt.Println(lipgloss.JoinVertical(lipgloss.Left, statusinfo...))
+	fmt.Println(lipgloss.JoinVertical(lipgloss.Left, status...))
 
-	networkinfo, err := networkSection()
+	network, err := networkSection()
 	if err != nil {
 		return err
 	}
-	fmt.Println(lipgloss.JoinVertical(lipgloss.Left, networkinfo...))
+	fmt.Println(lipgloss.JoinVertical(lipgloss.Left, network...))
 
 	return nil
 }
