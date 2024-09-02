@@ -1,4 +1,4 @@
-#include "pkg.h"
+#include "packages.h"
 #include <flatpak/flatpak.h>
 #include <rpm/rpmdb.h>
 #include <rpm/rpmlib.h>

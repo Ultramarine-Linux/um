@@ -2,22 +2,12 @@ package main
 
 import (
 	"fmt"
-	"os"
-	"runtime"
-	"strings"
 
-	"golang.org/x/sys/unix"
-
+	"github.com/Ultramarine-Linux/um/pkg/sysinfo"
 	"github.com/Ultramarine-Linux/um/util"
-	"github.com/acobaugh/osrelease"
 	"github.com/charmbracelet/lipgloss"
-	"github.com/jaypipes/ghw"
 
-	mem "github.com/mackerelio/go-osstat/memory"
-	"github.com/mackerelio/go-osstat/uptime"
 	"github.com/urfave/cli/v2"
-
-	"github.com/Wifx/gonetworkmanager/v2"
 )
 
 var listHeader = lipgloss.NewStyle().
@@ -29,13 +19,8 @@ var listHeader = lipgloss.NewStyle().
 
 var listItem = lipgloss.NewStyle().PaddingLeft(2).Render
 
-func networkInfo() ([]string, error) {
-	nm, err := gonetworkmanager.NewNetworkManager()
-	if err != nil {
-		return nil, err
-	}
-
-	devices, err := nm.GetPropertyAllDevices()
+func networkSection() ([]string, error) {
+	devices, err := sysinfo.GatherNetworkDevices()
 	if err != nil {
 		return nil, err
 	}
@@ -45,79 +30,48 @@ func networkInfo() ([]string, error) {
 	}
 
 	for _, device := range devices {
-		deviceInterface, err := device.GetPropertyInterface()
-		if err != nil {
-			fmt.Println(err.Error())
-			continue
-		}
-		connection, err := device.GetPropertyActiveConnection()
-		if err != nil {
-			fmt.Println(err.Error())
-			continue
-		}
-		if connection == nil {
-			continue
-		}
+		statusString := "Unknown"
 
-		status, err := connection.GetPropertyState()
-		if err != nil {
-			fmt.Println(err.Error())
-			continue
-		}
-
-		proptype, err := connection.GetPropertyType()
-		if err != nil {
-			fmt.Println(err.Error())
-			continue
-		}
-
-		statusString := ""
-		switch status {
-		case gonetworkmanager.NmActiveConnectionStateActivated:
+		if device.Connected {
 			statusString = "Connected"
-		default:
-			statusString = "Unknown"
 		}
-		devicesInfo = append(devicesInfo, listItem(fmt.Sprintf("%s (%s): %s", deviceInterface, proptype, statusString)))
+
+		devicesInfo = append(devicesInfo, listItem(fmt.Sprintf("%s (%s): %s", device.Interface, device.Type, statusString)))
 	}
 
 	return devicesInfo, nil
 }
 
-func statusInfo() ([]string, error) {
-	dur, err := uptime.Get()
-	if err != nil {
-		return nil, err
-
-	}
-
-	u := unix.Utsname{}
-	err = unix.Uname(&u)
+func statusSection() ([]string, error) {
+	status, err := sysinfo.GatherStatus()
 	if err != nil {
 		return nil, err
 	}
 
-	rpmCount := util.GetInstalledRpmCount()
-	systemFlatpakCount := util.GetInstalledSystemFlatpakCount()
-	userFlatpakCount := util.GetInstalledUserFlatpakCount()
+	packages, err := sysinfo.GatherPackages()
+	if err != nil {
+		return nil, err
+	}
 
 	return []string{
 		listHeader("Status"),
-		listItem("Uptime: " + dur.String()),
-		listItem("Kernel: " + string(u.Release[:])),
-		listItem(fmt.Sprintf("Packages: %d rpms, %d system flatpaks, %d user flatpaks", rpmCount, systemFlatpakCount, userFlatpakCount)),
+		listItem("Uptime: " + status.Uptime.String()),
+		listItem("Kernel: " + status.Kernel),
+		listItem("Disk Free: " + util.FormatBytes(int64(status.RootDiskFree))),
+		listItem("Filesystem: " + status.RootFilesystem),
+		listItem(fmt.Sprintf("Packages: %d rpms, %d system flatpaks, %d user flatpaks", packages.RPMCount, packages.SystemFlatpakCount, packages.UserFlatpakCount)),
 	}, nil
 }
 
-func gatherOsInfo() (result []string, err error) {
-	release, err := osrelease.Read()
+func osSection() (result []string, err error) {
+	os, err := sysinfo.GatherOS()
 	if err != nil {
 		return nil, err
 	}
 
 	var atomicValue string
 
-	if strings.HasPrefix(release["VARIANT"], "Atomic") {
+	if os.Atomic {
 		atomicValue = "True"
 	} else {
 		atomicValue = "False"
@@ -125,20 +79,15 @@ func gatherOsInfo() (result []string, err error) {
 
 	return []string{
 		listHeader("System"),
-		listItem("Name: " + release["NAME"]),
-		listItem("Version: " + release["VERSION"]),
-		listItem("Variant: " + release["VARIANT"]),
+		listItem("Name: " + os.Name),
+		listItem("Version: " + os.Version),
+		listItem("Variant: " + os.Variant),
 		listItem("Atomic: " + atomicValue),
 	}, nil
 }
 
 func gatherHwInfo() (result []string, err error) {
-	cpu, err := ghw.CPU()
-	if err != nil {
-		return nil, err
-	}
-
-	gpu, err := ghw.GPU()
+	hardware, err := sysinfo.GatherHardware()
 	if err != nil {
 		return nil, err
 	}
@@ -147,120 +96,77 @@ func gatherHwInfo() (result []string, err error) {
 		listHeader("Hardware"),
 	}
 
-	baseboard, err := ghw.Baseboard(ghw.WithDisableWarnings())
-	if err != nil {
-		fmt.Printf("Error getting baseboard info: %v", err)
-	}
-	result = append(result, listItem(fmt.Sprintf("Vendor: %s", baseboard.Vendor)))
-	result = append(result, listItem(fmt.Sprintf("Product: %s", baseboard.Product)))
-
-	memory, err := ghw.Memory()
-	if err != nil {
-		return nil, err
-	}
-
-	memoryStats, err := mem.Get()
-	if err != nil {
-		return nil, err
-	}
+	result = append(result, listItem(fmt.Sprintf("Vendor: %s", hardware.Vendor)))
+	result = append(result, listItem(fmt.Sprintf("Product: %s", hardware.Product)))
 
 	result = append(result, listItem(fmt.Sprintf("Memory: %s (physical), %s (usuable)",
-		util.FormatBytes(int64(memory.TotalPhysicalBytes)),
-		util.FormatBytes(int64(memory.TotalUsableBytes)))))
+		util.FormatBytes(int64(hardware.PhysicalMemory)),
+		util.FormatBytes(int64(hardware.UsableMemory)))))
 
-	result = append(result, listItem(fmt.Sprintf("Swap: %s", util.FormatBytes(int64(memoryStats.SwapTotal)))))
+	result = append(result, listItem(fmt.Sprintf("Swap: %s", util.FormatBytes(int64(hardware.Swap)))))
 
-	for i, processor := range cpu.Processors {
+	for i, cpu := range hardware.CPUs {
 		title := "CPU"
-		if len(cpu.Processors) > 1 {
+		if len(hardware.CPUs) > 1 {
 			title = title + string(i)
 		}
 
-		result = append(result, listItem(fmt.Sprintf("%s: %s (%s)", title, processor.Model, runtime.GOARCH)))
+		result = append(result, listItem(fmt.Sprintf("%s: %s (%s)", title, cpu.Model, cpu.Arch)))
 	}
 
-	for i, card := range gpu.GraphicsCards {
+	for i, gpu := range hardware.GPUs {
 		title := "GPU"
-		if len(cpu.Processors) > 1 {
+		if len(hardware.GPUs) > 1 {
 			title = title + string(i)
 		}
 
-		result = append(result, listItem(fmt.Sprintf("%s: %s", title, card.DeviceInfo.Product.Name)))
-		result = append(result, listItem(fmt.Sprintf("%s Driver: %s", title, card.DeviceInfo.Driver))) //?
-	}
-
-	var stat unix.Statfs_t
-	wd, err := os.Getwd()
-	unix.Statfs(wd, &stat)
-	diskFree := int64(stat.Bavail) * int64(stat.Bsize)
-	result = append(result, listItem(fmt.Sprintf("Disk Free: %s", util.FormatBytes(diskFree))))
-
-	block, err := ghw.Block()
-	if err != nil {
-		return nil, err
-	}
-
-	for _, disk := range block.Disks {
-		for _, part := range disk.Partitions {
-			if part.MountPoint == "/" {
-				result = append(result, listItem(fmt.Sprintf("Disk Type: %s", disk.StorageController.String())))
-				result = append(result, listItem(fmt.Sprintf("Filesystem: %s", part.Type)))
-			}
-		}
+		result = append(result, listItem(fmt.Sprintf("%s: %s", title, gpu.Name)))
+		result = append(result, listItem(fmt.Sprintf("%s Driver: %s", title, gpu.Driver))) //?
 	}
 
 	return
 }
 
-func gatherDiskInfo() (result []string, err error) {
+func disksSection() (result []string, err error) {
+	disks, err := sysinfo.GatherDisks()
+	if err != nil {
+		return nil, err
+	}
+
 	result = []string{
 		listHeader("Disk"),
 	}
 
-	block, err := ghw.Block()
-	if err != nil {
-		return nil, err
-	}
-
-	for i, disk := range block.Disks {
-		if disk.BusPath == "unknown" {
-			continue
-		}
-
+	for i, disk := range disks {
 		title := "Disk"
-		if len(block.Disks) > 1 {
+		if len(disks) > 1 {
 			title = title + string(i)
 		}
 
 		result = append(result, listItem(fmt.Sprintf("%s: %s (%s)", title, disk.Model, disk.Name)))
-		result = append(result, listItem(fmt.Sprintf("%s Type: %s", title, disk.DriveType.String())))
-		result = append(result, listItem(fmt.Sprintf("%s Controler: %s", title, disk.StorageController.String())))
+		result = append(result, listItem(fmt.Sprintf("%s Type: %s", title, disk.Type)))
+		result = append(result, listItem(fmt.Sprintf("%s Controler: %s", title, disk.Controller)))
 	}
 
 	return
 }
 
-func gatherDesktop() (result []string, err error) {
-	var protocol string
-
-	if s := os.Getenv("WAYLAND_DISPLAY"); s != "" {
-		protocol = "Wayland"
-	} else if s := os.Getenv("DISPLAY"); s != "" {
-		protocol = "X11"
-	} else {
-		protocol = "Unknown"
+func desktopSection() (result []string, err error) {
+	desktop, err := sysinfo.GatherDesktop()
+	if err != nil {
+		return nil, err
 	}
 
 	result = []string{
 		listHeader("Desktop"),
-		listItem("Name: " + os.Getenv("XDG_CURRENT_DESKTOP")),
-		listItem("Protocol: " + protocol),
+		listItem("Name: " + desktop.Name),
+		listItem("Protocol: " + desktop.Protocol.String()),
 	}
 	return
 }
 
 func status(c *cli.Context) error {
-	osinfo, err := gatherOsInfo()
+	osinfo, err := osSection()
 	if err != nil {
 		return err
 	}
@@ -272,25 +178,25 @@ func status(c *cli.Context) error {
 	}
 	fmt.Println(lipgloss.JoinVertical(lipgloss.Left, hwinfo...))
 
-	diskinfo, err := gatherDiskInfo()
+	diskinfo, err := disksSection()
 	if err != nil {
 		return err
 	}
 	fmt.Println(lipgloss.JoinVertical(lipgloss.Left, diskinfo...))
 
-	desktopinfo, err := gatherDesktop()
+	desktopinfo, err := desktopSection()
 	if err != nil {
 		return err
 	}
 	fmt.Println(lipgloss.JoinVertical(lipgloss.Left, desktopinfo...))
 
-	statusinfo, err := statusInfo()
+	statusinfo, err := statusSection()
 	if err != nil {
 		return err
 	}
 	fmt.Println(lipgloss.JoinVertical(lipgloss.Left, statusinfo...))
 
-	networkinfo, err := networkInfo()
+	networkinfo, err := networkSection()
 	if err != nil {
 		return err
 	}
