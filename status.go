@@ -1,6 +1,7 @@
 package main
 
 import (
+	"encoding/json"
 	"fmt"
 
 	"github.com/Ultramarine-Linux/um/pkg/sysinfo"
@@ -166,6 +167,22 @@ func desktopSection() (result []string, err error) {
 }
 
 func status(c *cli.Context) error {
+	if c.Bool("json") {
+		all, err := sysinfo.GatherAll()
+		if err != nil {
+			return err
+		}
+
+		bytes, err := json.Marshal(all)
+		if err != nil {
+			return err
+		}
+
+		println(string(bytes))
+
+		return nil
+	}
+
 	os, err := osSection()
 	if err != nil {
 		return err

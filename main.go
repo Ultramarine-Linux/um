@@ -18,6 +18,12 @@ func runCli() error {
 				Name:   "status",
 				Usage:  "display the status of the system",
 				Action: status,
+				Flags: []cli.Flag{
+					&cli.BoolFlag{
+						Name:  "json",
+						Usage: "Output system status in JSON",
+					},
+				},
 			},
 			{
 				Name:   "experiments",
