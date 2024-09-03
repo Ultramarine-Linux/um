@@ -22,7 +22,7 @@ func GatherGPUs() ([]GPU, error) {
 
 	for _, card := range gpu.GraphicsCards {
 		gpus = append(gpus, GPU{
-			Name:   card.DeviceInfo.Vendor.Name,
+			Name:   card.DeviceInfo.Product.Name,
 			Driver: card.DeviceInfo.Driver,
 		})
 	}
