@@ -22,6 +22,7 @@ int get_installed_system_flatpak_count() {
   if (err != NULL) {
     g_warning("unable to get installed system flatpak refs: %s\n",
               err->message);
+    g_clear_object(&installation);
     g_error_free(err);
     return 0;
   }
@@ -50,6 +51,7 @@ int get_installed_user_flatpak_count() {
 
   if (err != NULL) {
     g_warning("unable to get installed user flatpak refs: %s\n", err->message);
+    g_clear_object(&installation);
     g_error_free(err);
     return 0;
   }
