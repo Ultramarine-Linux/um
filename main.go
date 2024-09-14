@@ -20,6 +20,10 @@ func runCli() error {
 				Action: status,
 				Flags: []cli.Flag{
 					&cli.BoolFlag{
+						Name:  "upload",
+						Usage: "Upload status to boba",
+					},
+					&cli.BoolFlag{
 						Name:  "json",
 						Usage: "Output system status in JSON",
 					},

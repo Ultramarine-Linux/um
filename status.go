@@ -1,14 +1,24 @@
 package main
 
 import (
+	"bytes"
+	"encoding/hex"
 	"encoding/json"
 	"fmt"
+	"io"
+	"mime/multipart"
+	"net/http"
 
+	"github.com/Ultramarine-Linux/um/pkg/crypt"
 	"github.com/Ultramarine-Linux/um/pkg/sysinfo"
 	"github.com/Ultramarine-Linux/um/util"
 	"github.com/charmbracelet/lipgloss"
 
 	"github.com/urfave/cli/v2"
+)
+
+const (
+	BobaURL = "https://boba.fyralabs.com"
 )
 
 var listHeader = lipgloss.NewStyle().
@@ -166,23 +176,7 @@ func desktopSection() (result []string, err error) {
 	return
 }
 
-func status(c *cli.Context) error {
-	if c.Bool("json") {
-		all, err := sysinfo.GatherAll()
-		if err != nil {
-			return err
-		}
-
-		bytes, err := json.Marshal(all)
-		if err != nil {
-			return err
-		}
-
-		println(string(bytes))
-
-		return nil
-	}
-
+func display() error {
 	os, err := osSection()
 	if err != nil {
 		return err
@@ -220,4 +214,100 @@ func status(c *cli.Context) error {
 	fmt.Println(lipgloss.JoinVertical(lipgloss.Left, network...))
 
 	return nil
+}
+
+func displayJSON() error {
+	all, err := sysinfo.GatherAll()
+	if err != nil {
+		return err
+	}
+
+	jsonBytes, err := json.Marshal(all)
+	if err != nil {
+		return err
+	}
+
+	println(string(jsonBytes))
+
+	return nil
+}
+
+type uploadResponse struct {
+	Ok  bool    `json:"ok"`
+	Err *string `json:"err"` // nil if no error
+	Id  *string `json:"id"`  // nil if error
+}
+
+func upload() error {
+	all, err := sysinfo.GatherAll()
+	if err != nil {
+		return err
+	}
+
+	jsonBytes, err := json.Marshal(all)
+	if err != nil {
+		return err
+	}
+
+	key, err := crypt.NewKey()
+	if err != nil {
+		return err
+	}
+
+	nonce, err := crypt.NewNonce()
+	if err != nil {
+		return err
+	}
+
+	encrypted, err := crypt.Encrypt(key, nonce, jsonBytes)
+	if err != nil {
+		return err
+	}
+
+	var formData bytes.Buffer
+
+	form := multipart.NewWriter(&formData)
+	form.WriteField("encrypted", hex.EncodeToString(encrypted))
+	form.WriteField("nonce", hex.EncodeToString(nonce))
+	if err := form.Close(); err != nil {
+		return err
+	}
+
+	contentType := form.FormDataContentType()
+
+	resp, err := http.Post(BobaURL+"/api/upload", contentType, &formData)
+	if err != nil {
+		return err
+	}
+
+	body, err := io.ReadAll(resp.Body)
+	if err != nil {
+		return err
+	}
+
+	uploadResp := uploadResponse{}
+	err = json.Unmarshal(body, &uploadResp)
+	if err != nil {
+		return err
+	}
+
+	if !uploadResp.Ok {
+		return fmt.Errorf("upload failed with %s: %s", resp.Status, body)
+	}
+
+	fragment := hex.EncodeToString(key)
+
+	fmt.Printf("Upload successful: %s/%s#%s\n", BobaURL, *uploadResp.Id, fragment)
+
+	return nil
+}
+
+func status(c *cli.Context) error {
+	if c.Bool("json") {
+		return displayJSON()
+	} else if c.Bool("upload") {
+		return upload()
+	} else {
+		return display()
+	}
 }
