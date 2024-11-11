@@ -29,21 +29,21 @@ func runCli() error {
 					},
 				},
 			},
-			{
-				Name:   "experiments",
-				Usage:  "manage Ultramarine Linux experiments, a preview of features to come",
-				Action: listExperiments,
-				Subcommands: []*cli.Command{
-					{
-						Name:   "enable",
-						Action: enableExperiment,
-					},
-					{
-						Name:   "disable",
-						Action: disableExperiment,
-					},
-				},
-			},
+			// {
+			// 	Name:   "experiments",
+			// 	Usage:  "manage Ultramarine Linux experiments, a preview of features to come",
+			// 	Action: listExperiments,
+			// 	Subcommands: []*cli.Command{
+			// 		{
+			// 			Name:   "enable",
+			// 			Action: enableExperiment,
+			// 		},
+			// 		{
+			// 			Name:   "disable",
+			// 			Action: disableExperiment,
+			// 		},
+			// 	},
+			// },
 		},
 	}
 
