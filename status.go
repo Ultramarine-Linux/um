@@ -11,7 +11,7 @@ import (
 
 	"github.com/Ultramarine-Linux/um/pkg/crypt"
 	"github.com/Ultramarine-Linux/um/pkg/sysinfo"
-	"github.com/Ultramarine-Linux/um/util"
+	"github.com/Ultramarine-Linux/um/pkg/util"
 	"github.com/charmbracelet/lipgloss"
 
 	"github.com/urfave/cli/v2"

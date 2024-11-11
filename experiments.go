@@ -6,7 +6,7 @@ import (
 	"os/exec"
 
 	"github.com/Ultramarine-Linux/um/experiments"
-	"github.com/Ultramarine-Linux/um/util"
+	"github.com/Ultramarine-Linux/um/pkg/util"
 	"github.com/charmbracelet/huh"
 	"github.com/charmbracelet/lipgloss"
 	"github.com/charmbracelet/lipgloss/table"

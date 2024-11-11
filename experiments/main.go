@@ -5,7 +5,7 @@ import (
 	"os"
 	"path/filepath"
 
-	"github.com/Ultramarine-Linux/um/util"
+	"github.com/Ultramarine-Linux/um/pkg/util"
 	"github.com/samber/lo"
 	bolt "go.etcd.io/bbolt"
 )
