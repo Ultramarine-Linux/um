@@ -1,6 +1,18 @@
-## todos
+# um
 
-- [ ] Refactor experiments code
-- [ ] Refactor sudo
-- [ ] Refactor all of this really
-- [ ] Put styles in a cute little place
+The Ultramarine CLI. Currently only provides general system status.
+
+## 📦 Dependencies
+
+```
+flatpak
+rpm
+```
+
+### 🛠️ Build Dependencies
+
+```
+go
+flatpak-devel
+rpm-devel
+```
