@@ -12,6 +12,7 @@ require (
 	github.com/mackerelio/go-osstat v0.2.5
 	github.com/samber/lo v1.49.1
 	github.com/urfave/cli/v2 v2.27.6
+	go.yaml.in/yaml/v2 v2.4.3
 )
 
 require (

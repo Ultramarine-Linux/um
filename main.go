@@ -29,6 +29,57 @@ func runCli() error {
 					},
 				},
 			},
+			{
+				Name:   "tweaks",
+				Usage:  "manage Ultramarine tweaks, a set of optional system patches and configurations",
+				Action: listTweaks,
+				Subcommands: []*cli.Command{
+					{
+						Name:    "enable",
+						Usage:   "Enable an Ultramarine tweak",
+						Aliases: []string{"en", "apply", "set"},
+						Description: "This will run an Ansible playbook to apply the tweak. " +
+							"Tweaks can be of type 'oneshot' or 'toggle'. 'oneshot' tweaks can only be enabled once, while 'toggle' tweaks can also be disabled.",
+						Action: enableTweak,
+						Flags: []cli.Flag{
+							&cli.BoolFlag{
+								Name:    "yes",
+								Aliases: []string{"y"},
+								Usage:   "Automatically confirm enabling tweaks without prompting",
+							},
+						},
+					},
+					{
+						Name:    "disable",
+						Aliases: []string{"dis", "remove", "unset"},
+						Usage:   "Disable an Ultramarine tweak",
+						Description: "This will run an Ansible playbook to revert the tweak. " +
+							"Only tweaks of type 'toggle' can be disabled. 'oneshot' tweaks cannot be reverted.",
+						Action: disableTweak,
+						Flags: []cli.Flag{
+							&cli.BoolFlag{
+								Name:    "yes",
+								Aliases: []string{"y"},
+								Usage:   "Automatically confirm disabling tweaks without prompting",
+							},
+						},
+					},
+					{
+						Name:    "run",
+						Usage:   "Run an Ultramarine script tweak",
+						Aliases: []string{"exec", "execute"},
+						Description: "This will run a script tweak. " +
+							"Script tweaks are one-time scripts that perform a specific action.",
+						Action: runTweak,
+					},
+					{
+						Name:   "list",
+						Usage:  "List all available Ultramarine tweaks",
+						Action: listTweaks,
+					},
+				},
+			},
+
 			// {
 			// 	Name:   "experiments",
 			// 	Usage:  "manage Ultramarine Linux experiments, a preview of features to come",

@@ -1,0 +1,41 @@
+---
+# ansible playbook to apply OpenSSL legacy negotiation settings
+
+- name: Apply OpenSSL Legacy Negotiation Settings
+  hosts: localhost
+  connection: local
+  become: true
+  gather_facts: true
+  tasks:
+      - name: Apply legacy negotiation settings
+        ansible.builtin.copy:
+            dest: /etc/pki/tls/openssl.d/legacy-negotiation.cnf
+            mode: "0644"
+            content: |
+                [openssl_init]
+                providers = provider_sect
+                ssl_conf = ssl_sect
+
+                [ssl_sect]
+                system_default = system_default_sect
+
+                [system_default_sect]
+                Options = UnsafeLegacyRenegotiation
+                CipherString = DEFAULT@SECLEVEL=1
+        notify:
+            - "Restart wpa_supplicant"
+
+      - name: Check if wpa_supplicant service exists
+        ansible.builtin.service:
+            name: wpa_supplicant
+            state: started
+        register: wpa_service
+        ignore_errors: true
+
+  handlers:
+      - name: Restart wpa_supplicant
+        listen: "Restart wpa_supplicant"
+        when: wpa_service is not failed
+        ansible.builtin.service:
+            name: wpa_supplicant
+            state: restarted

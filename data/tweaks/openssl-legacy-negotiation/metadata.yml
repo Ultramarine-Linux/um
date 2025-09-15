@@ -1,0 +1,12 @@
+description: "OpenSSL: Use Unsafe Legacy Negotiation (eduroam compatibility fix)"
+type: toggle
+stability: 4
+
+warning: |-
+    This makes OpenSSL use a legacy negotiation method that is considered unsafe and deprecated as of RFC 5746.
+    Only enable this if you require compatibility with networks that do not support secure renegotiation, such as eduroam or custom MSCHAPv2 setups.
+    Enabling this may expose your system to security vulnerabilities,
+    See https://docs.openssl.org/1.0.2/man3/SSL_CTX_set_options/#patched-openssl-client-and-unpatched-server for more information.
+
+    If your network covers eduroam, it is recommended you use eduroam CAT to configure your device instead of enabling this option.
+    See https://cat.eduroam.org/ for more information.
