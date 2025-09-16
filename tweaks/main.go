@@ -5,7 +5,7 @@ import (
 	"os"
 
 	"github.com/Ultramarine-Linux/um/pkg/util"
-	"go.yaml.in/yaml/v2"
+	"go.yaml.in/yaml/v4"
 	"golang.org/x/sys/unix"
 )
 
