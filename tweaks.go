@@ -9,8 +9,13 @@ import (
 	"github.com/urfave/cli/v2"
 )
 
+var Envars = []string{
+	"UM_TWEAKS_PATH",
+	"UM_DATA",
+}
+
 func listTweaks(c *cli.Context) error {
-	util.SudoIfNeeded([]string{"UM_TWEAKS_PATH"})
+	util.SudoIfNeeded(Envars)
 	tweaks, err := tweaks.List()
 	if err != nil {
 		return err
@@ -35,7 +40,7 @@ func listTweaks(c *cli.Context) error {
 }
 
 func enableTweak(c *cli.Context) error {
-	util.SudoIfNeeded([]string{"UM_TWEAKS_PATH"})
+	util.SudoIfNeeded(Envars)
 	if c.Args().Len() < 1 {
 		return fmt.Errorf("please provide a tweak ID to enable")
 	}
@@ -94,7 +99,7 @@ func enableTweak(c *cli.Context) error {
 }
 
 func disableTweak(c *cli.Context) error {
-	util.SudoIfNeeded([]string{"UM_TWEAKS_PATH"})
+	util.SudoIfNeeded(Envars)
 	if c.Args().Len() < 1 {
 		return fmt.Errorf("please provide a tweak ID to disable")
 	}
@@ -143,7 +148,7 @@ func runTweak(c *cli.Context) error {
 		return cli.Exit("A tweak id must be passed", 1)
 	}
 
-	util.SudoIfNeeded([]string{"UM_TWEAKS_PATH"})
+	util.SudoIfNeeded(Envars)
 
 	tweak, err := tweaks.LoadTweakId(c.Args().First())
 	if err != nil {

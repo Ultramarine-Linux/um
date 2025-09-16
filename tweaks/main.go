@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"os"
 
+	"github.com/Ultramarine-Linux/um/pkg/util"
 	"go.yaml.in/yaml/v2"
 	"golang.org/x/sys/unix"
 )
@@ -94,7 +95,7 @@ func TweaksPath() string {
 	if os.Getenv("UM_TWEAKS_PATH") != "" {
 		return os.Getenv("UM_TWEAKS_PATH")
 	}
-	return "/usr/share/um/tweaks/"
+	return util.GetDataDir() + "/tweaks"
 }
 
 // Load a tweak
