@@ -27,21 +27,33 @@ type Tweak struct {
 	Path        string          `yaml:"-"`
 }
 
-func (s StabilityLevel) String() string {
-	switch s {
-	case GFL:
-		return "GFL"
-	case Devel:
-		return "Devel"
-	case Alpha:
-		return "Alpha"
-	case Beta:
-		return "Beta"
-	case Stable:
-		return "Stable"
-	default:
-		return "Unknown"
+var stabilityLevelStrings = map[StabilityLevel]string{
+	GFL:    "gfl",
+	Devel:  "devel",
+	Alpha:  "alpha",
+	Beta:   "beta",
+	Stable: "stable",
+}
+
+func (t *StabilityLevel) UnmarshalYAML(unmarshal func(interface{}) error) error {
+	var s string
+	if err := unmarshal(&s); err != nil {
+		return err
 	}
+	for k, v := range stabilityLevelStrings {
+		if v == s {
+			*t = k
+			return nil
+		}
+	}
+	return fmt.Errorf("unknown stability level: %s", s)
+}
+
+func (s StabilityLevel) String() string {
+	if str, ok := stabilityLevelStrings[s]; ok {
+		return str
+	}
+	return "unknown"
 }
 
 type TweakType int

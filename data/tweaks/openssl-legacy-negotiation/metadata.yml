@@ -1,6 +1,6 @@
 description: "OpenSSL: Use Unsafe Legacy Negotiation"
 type: toggle
-stability: 4
+stability: stable
 
 warning: |-
     This makes OpenSSL use a legacy negotiation method that is considered unsafe and deprecated as of RFC 5746.
