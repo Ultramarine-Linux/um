@@ -1,0 +1,11 @@
+description: "Uninstall Old kernels"
+type: script
+stability: stable
+
+warning: |-
+    This will remove all older kernel versions from your system, keeping only the currently running kernel and the latest installed kernel.
+    You will lose the ability to fall back to an older kernel version if you encounter issues with the newest available kernel!
+    Ensure that your latest kernel is functioning properly before proceeding.
+    You can check your current kernel version with `uname -r` and the installed kernels with `rpm -q kernel`.
+    
+    This tweak may not work if you install a custom kernel with a different naming scheme than just "kernel".

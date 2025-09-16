@@ -114,7 +114,6 @@ func disableTweak(c *cli.Context) error {
 		return tweaks.TweakTypeNotSupportedError(tweak.TweakType)
 	}
 	yesFlag := c.Bool("yes")
-	fmt.Printf("yesflag: %v\n", yesFlag)
 
 	var confirm bool
 	if yesFlag {
@@ -147,10 +146,11 @@ func runTweak(c *cli.Context) error {
 	if c.NArg() < 1 {
 		return cli.Exit("A tweak id must be passed", 1)
 	}
+	tweakID := c.Args().First()
 
 	util.SudoIfNeeded(Envars)
 
-	tweak, err := tweaks.LoadTweakId(c.Args().First())
+	tweak, err := tweaks.LoadTweakId(tweakID)
 	if err != nil {
 		return err
 	}
@@ -161,6 +161,30 @@ func runTweak(c *cli.Context) error {
 
 	if tweak.TweakType != tweaks.TweakTypeScript {
 		return tweaks.TweakTypeNotSupportedError(tweak.TweakType)
+	}
+	yesFlag := c.Bool("yes")
+
+	var confirm bool
+	if yesFlag {
+		confirm = true
+	} else if tweak.Warning != nil {
+		err = huh.NewConfirm().
+			Title("Would you like to run this tweak? (" + tweakID + ")").
+			Affirmative("Yes!").
+			Negative("No").
+			Description(*tweak.Warning).
+			Value(&confirm).
+			Run()
+		if err != nil {
+			return err
+		}
+	} else {
+		confirm = true
+	}
+
+	if !confirm {
+		fmt.Println("Aborting...")
+		return nil
 	}
 
 	return tweak.Run()
