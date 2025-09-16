@@ -12,6 +12,9 @@
             dest: /etc/pki/tls/openssl.d/legacy-negotiation.cnf
             mode: "0644"
             content: |
+                # This file is managed by Ultramarine Tweaks, manual changes will be overwritten.
+                # To disable this configuration, run `um tweaks disable openssl-legacy-negotiation`.
+                # see https://wiki.ultramarine-linux.org/en/usage/umcli/ for more information.
                 [openssl_init]
                 providers = provider_sect
                 ssl_conf = ssl_sect
