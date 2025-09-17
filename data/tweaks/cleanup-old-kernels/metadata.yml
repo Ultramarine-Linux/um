@@ -4,5 +4,5 @@ stability: stable
 
 warning: |-
     This will remove all older kernel versions from your system except the last 2 versions.
-    If you are using an older kernel, make sure the latest kernel is functional before running this.
+    If you're using an older kernel, make sure the latest kernel boots before running this.
     This may leave your system without a working kernel if the newest kernel is broken!
