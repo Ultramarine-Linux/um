@@ -1,4 +1,4 @@
-description: "OpenSSL: Use Unsafe Legacy Negotiation"
+description: "Use unsafe legacy negotiation for OpenSSL."
 type: toggle
 stability: stable
 
