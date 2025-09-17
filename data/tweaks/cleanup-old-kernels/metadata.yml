@@ -1,4 +1,4 @@
-description: "Uninstall Old kernels"
+description: "Remove Old Kernels"
 type: script
 stability: stable
 
