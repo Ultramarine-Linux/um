@@ -3,6 +3,6 @@ type: script
 stability: stable
 
 warning: |-
-    This will remove all older kernel versions from your system except the last 2 versions.
+    This will remove all but the the last two kernel versions from your system.
     If you're using an older kernel, make sure the latest kernel boots before running this.
     This may leave your device unbootable if the latest kernel is broken!!
