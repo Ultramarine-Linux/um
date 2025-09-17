@@ -170,7 +170,7 @@ func runTweak(c *cli.Context) error {
 	} else if tweak.Warning != nil {
 		err = huh.NewConfirm().
 			Title("Would you like to run this tweak? (" + tweakID + ")").
-			Affirmative("Yes!").
+			Affirmative("Run").
 			Negative("Cancel").
 			Description(*tweak.Warning).
 			Value(&confirm).
