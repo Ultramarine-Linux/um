@@ -144,7 +144,7 @@ func disableTweak(c *cli.Context) error {
 
 func runTweak(c *cli.Context) error {
 	if c.NArg() < 1 {
-		return cli.Exit("A tweak id must be passed", 1)
+		return cli.Exit("A tweak ID must be passed", 1)
 	}
 	tweakID := c.Args().First()
 
