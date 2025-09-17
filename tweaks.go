@@ -122,7 +122,7 @@ func disableTweak(c *cli.Context) error {
 		err = huh.NewConfirm().
 			Title("Would you like to disable this tweak? (" + tweakID + ")").
 			Affirmative("Yes!").
-			Negative("No").
+			Negative("Cancel").
 			Value(&confirm).
 			Run()
 		if err != nil {
