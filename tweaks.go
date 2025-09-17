@@ -171,7 +171,7 @@ func runTweak(c *cli.Context) error {
 		err = huh.NewConfirm().
 			Title("Would you like to run this tweak? (" + tweakID + ")").
 			Affirmative("Yes!").
-			Negative("No").
+			Negative("Cancel").
 			Description(*tweak.Warning).
 			Value(&confirm).
 			Run()
