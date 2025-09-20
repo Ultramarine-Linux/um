@@ -42,7 +42,7 @@ func listTweaks(c *cli.Context) error {
 func enableTweak(c *cli.Context) error {
 	util.SudoIfNeeded(Envars)
 	if c.Args().Len() < 1 {
-		return fmt.Errorf("please provide a tweak ID to enable")
+		return fmt.Errorf("Please provide a tweak ID to enable")
 	}
 	tweakID := c.Args().Get(0)
 
