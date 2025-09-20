@@ -75,7 +75,7 @@ func enableTweak(c *cli.Context) error {
 
 		err := huh.NewConfirm().
 			Title("Would you like to enable this tweak? (" + tweakID + ")").
-			Affirmative("Yes!").
+			Affirmative("Enable").
 			Negative("No").
 			Description(description).
 			Value(&confirm).
