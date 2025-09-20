@@ -1,0 +1,9 @@
+description: "Use unsafe legacy negotiation for OpenSSL."
+type: toggle
+stability: stable
+
+warning: |-
+    This makes OpenSSL use a legacy negotiation method that is considered unsafe and deprecated as of RFC 5746.
+    Only enable this if you require compatibility with networks that do not support secure renegotiation, such as some legacy MSCHAPv2 setups.
+    Enabling this may expose your system to security vulnerabilities,
+    See https://docs.openssl.org/1.0.2/man3/SSL_CTX_set_options/#patched-openssl-client-and-unpatched-server for more information.

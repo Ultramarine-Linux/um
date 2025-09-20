@@ -1,0 +1,19 @@
+---
+- name: Disable IPv4 MTU Probing
+  hosts: localhost
+  become: true
+  tasks:
+      - name: Disable IPv4 MTU probing
+        ansible.posix.sysctl:
+            name: net.ipv4.tcp_mtu_probing
+            value: 1
+            state: absent
+            sysctl_set: yes
+            reload: yes
+  handlers:
+      - name: Reload sysctl
+        ansible.builtin.systemd:
+            name: systemd-sysctl
+            state: restarted
+            enabled: yes
+        become: true
