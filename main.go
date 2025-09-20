@@ -66,7 +66,7 @@ func runCli() error {
 					},
 					{
 						Name:    "run",
-						Usage:   "Run an Ultramarine script tweak",
+						Usage:   "Run an Ultramarine tweak script",
 						Aliases: []string{"exec", "execute"},
 						Description: "This will run a script tweak. " +
 							"Script tweaks are one-time scripts that perform a specific action.",
