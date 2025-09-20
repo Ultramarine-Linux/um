@@ -30,7 +30,7 @@ func runCli() error {
 				},
 			},
 			{
-				Name:   "tweaks",
+				Name:   "Tweaks",
 				Usage:  "manage Ultramarine tweaks, a set of optional system patches and configurations",
 				Action: listTweaks,
 				Subcommands: []*cli.Command{
