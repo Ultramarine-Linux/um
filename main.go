@@ -16,7 +16,7 @@ func runCli() error {
 		Commands: []*cli.Command{
 			{
 				Name:   "status",
-				Usage:  "display the status of the system",
+				Usage:  "Display the status of the system",
 				Action: status,
 				Flags: []cli.Flag{
 					&cli.BoolFlag{
@@ -30,8 +30,8 @@ func runCli() error {
 				},
 			},
 			{
-				Name:   "Tweaks",
-				Usage:  "manage Ultramarine tweaks, a set of optional system patches and configurations",
+				Name:   "tweaks",
+				Usage:  "Manage Ultramarine tweaks, a set of optional system patches and configurations",
 				Action: listTweaks,
 				Subcommands: []*cli.Command{
 					{
