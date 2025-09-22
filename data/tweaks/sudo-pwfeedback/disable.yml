@@ -1,0 +1,10 @@
+---
+- name: Undo enable password feedback for sudo
+  hosts: localhost
+  connection: local
+  become: true
+  tasks:
+    - name: Remove drop-in file for sudoers
+      ansible.builtin.file:
+        path: /etc/sudoers.d/pwfeedback
+        state: absent

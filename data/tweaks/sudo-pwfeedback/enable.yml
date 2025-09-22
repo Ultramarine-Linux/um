@@ -1,0 +1,16 @@
+---
+- name: Enable password feedback for sudo
+  hosts: localhost
+  connection: local
+  become: true
+  tasks:
+      - name: Apply drop-in config file
+        ansible.builtin.copy:
+            dest: /etc/sudoers.d/pwfeedback
+            content: |
+                # This file is managed by Ultramarine Tweaks, manual changes will be overwritten.
+                # Enable password prompt feedback
+                Defaults pwfeedback
+            owner: root
+            group: root
+            mode: "0440"
