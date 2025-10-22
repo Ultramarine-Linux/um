@@ -1,0 +1,21 @@
+description: "Install CachyOS Kernel"
+type: toggle
+stability: stable
+
+warning: |-
+    Using the CachyOS kernel may lead to some compatibility issues with CPUs older than
+    x86-64-v3 (AVX2), increasing the minimum requirements to:
+    - Intel: Haswell (4th Gen Core) or newer
+    - AMD: Excavator (AMD Athlon X4 845 or newer) or Zen (Ryzen series)
+
+    Additionally, this may also break Secure Boot functionality if you have not already set up
+    `sbctl`. Please set up `sbctl` before enabling this tweak to avoid boot issues.
+    
+    `sbctl` is available in the Terra repository:
+        sudo dnf install sbctl
+    
+    Please refer to the CachyOS COPR documentation for more details:
+    https://github.com/CachyOS/copr-linux-cachyos
+    
+    For guidance on setting up `sbctl`, please visit:
+    https://github.com/Foxboron/sbctl/blob/master/docs/workflow-example.md
