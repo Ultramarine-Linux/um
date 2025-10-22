@@ -1,0 +1,47 @@
+---
+- name: Install CachyOS kernel
+  hosts: localhost
+  connection: local
+  become: true
+  gather_facts: true
+  tasks:
+      - name: Add CachyOS COPR repository
+        ansible.builtin.copy:
+            dest: /etc/yum.repos.d/copr-kernel-cachyos.repo
+            mode: "0644"
+            content: |
+                # This file is managed by `um tweak` - manual changes will be overwritten
+                [copr:copr.fedorainfracloud.org:bieszczaders:kernel-cachyos]
+                name=Copr repo for kernel-cachyos owned by bieszczaders
+                baseurl=https://download.copr.fedorainfracloud.org/results/bieszczaders/kernel-cachyos/fedora-$releasever-$basearch/
+                type=rpm-md
+                skip_if_unavailable=True
+                gpgcheck=1
+                gpgkey=https://download.copr.fedorainfracloud.org/results/bieszczaders/kernel-cachyos/pubkey.gpg
+                repo_gpgcheck=0
+                enabled=1
+                enabled_metadata=1
+      - name: "SELinux: Allow loading kernel modules"
+        ansible.posix.seboolean:
+            name: domain_kernel_load_modules
+            state: on
+            persistent: yes
+
+      - name: Automatically set default kernel to CachyOS kernel
+        ansible.builtin.copy:
+            dest: /etc/kernel/postinst.d/98-cachyos-set-default
+            mode: "0755"
+            content: |
+                #!/bin/sh
+                # This script is managed by `um tweak` - manual changes will be overwritten
+                set -e
+
+                grubby --set-default=/boot/$(ls /boot | grep vmlinuz.*cachy | sort -V | tail -1)
+                
+      - name: Install CachyOS kernel package
+        ansible.builtin.dnf:
+            name:
+                - kernel-cachyos
+                - kernel-cachyos-devel-matched
+            state: present
+            

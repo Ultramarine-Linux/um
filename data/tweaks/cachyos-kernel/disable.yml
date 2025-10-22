@@ -1,0 +1,35 @@
+---
+- name: Disable CachyOS kernel
+  hosts: localhost
+  connection: local
+  become: true
+  gather_facts: true
+  tasks:
+      - name: Remove CachyOS COPR repository
+        ansible.builtin.file:
+            path: /etc/yum.repos.d/copr-kernel-cachyos.repo
+            state: absent
+      - name: "SELinux: Disallow loading kernel modules"
+        ansible.posix.seboolean:
+            name: domain_kernel_load_modules
+            state: off
+            persistent: yes
+
+      - name: Remove automatic default kernel script for CachyOS kernel
+        ansible.builtin.file:
+            path: /etc/kernel/postinst.d/98-cachyos-set-default
+            state: absent
+
+      - name: Make sure Fedora ARK kernel still installed
+        ansible.builtin.dnf:
+            name:
+                - kernel
+                - kernel-devel-matched
+            state: present
+
+      - name: Remove CachyOS kernel package
+        ansible.builtin.dnf:
+            name:
+                - kernel-cachyos
+                - kernel-cachyos-devel-matched
+            state: absent
