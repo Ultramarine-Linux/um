@@ -145,11 +145,11 @@ func disksSection() (result []string, err error) {
 	}
 
 	result = []string{
-		listHeader("Disk"),
+		listHeader("Storage Drives"),
 	}
 
 	for i, disk := range disks {
-		title := "Disk"
+		title := "Drive"
 		if len(disks) > 1 {
 			title = title + string(i)
 		}
