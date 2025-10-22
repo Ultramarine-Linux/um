@@ -145,18 +145,18 @@ func disksSection() (result []string, err error) {
 	}
 
 	result = []string{
-		listHeader("Disk"),
+		listHeader("Storage Drives"),
 	}
 
 	for i, disk := range disks {
-		title := "Disk"
+		title := "Drive"
 		if len(disks) > 1 {
 			title = title + string(i)
 		}
 
 		result = append(result, listItem(fmt.Sprintf("%s: %s (%s)", title, disk.Model, disk.Name)))
 		result = append(result, listItem(fmt.Sprintf("%s Type: %s", title, disk.Type)))
-		result = append(result, listItem(fmt.Sprintf("%s Controler: %s", title, disk.Controller)))
+		result = append(result, listItem(fmt.Sprintf("%s Interface: %s", title, disk.Controller)))
 	}
 
 	return
