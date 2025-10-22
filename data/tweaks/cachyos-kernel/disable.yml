@@ -32,4 +32,6 @@
             name:
                 - kernel-cachyos
                 - kernel-cachyos-devel-matched
-            state: absent
+                - kernel-cachyos-*
+            state: removed
+            allowerasing: true
