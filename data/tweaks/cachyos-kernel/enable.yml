@@ -27,6 +27,12 @@
             state: on
             persistent: yes
 
+      - name: Ensure parent directory exists for post-install scripts
+        ansible.builtin.file:
+            path: /etc/kernel/postinst.d
+            state: directory
+            owner: root
+            group: root
       - name: Automatically set default kernel to CachyOS kernel
         ansible.builtin.copy:
             dest: /etc/kernel/postinst.d/98-cachyos-set-default
@@ -37,11 +43,10 @@
                 set -e
 
                 grubby --set-default=/boot/$(ls /boot | grep vmlinuz.*cachy | sort -V | tail -1)
-                
+
       - name: Install CachyOS kernel package
         ansible.builtin.dnf:
             name:
                 - kernel-cachyos
                 - kernel-cachyos-devel-matched
             state: present
-            
