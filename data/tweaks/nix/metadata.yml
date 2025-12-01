@@ -5,7 +5,7 @@ stability: alpha
 warning: |-
     This enables the Nix package manager by executing the Determinate Systems 
     Nix Installer silently. Stability is alpha as it does mess with your root
-    btrfs (It creates a subvol with higher compression, thanks to Nix's large
+    btrfs (it creates a subvol with higher compression, thanks to Nix's large
     storage requirements). Nix allows for ephemeral shells as well as 
     reproducable development and execution environments without the need for 
     a container runtime or virtualization.
