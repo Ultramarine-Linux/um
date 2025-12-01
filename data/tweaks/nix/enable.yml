@@ -21,6 +21,7 @@
         community.general.btrfs_subvolume:
             name: /nix
             filesystem_device: "{{ root_device.stdout }}"
+            autmount: true
       - name: Ensure /nix exists for subvol mount path
         ansible.builtin.file:
             path: /nix
