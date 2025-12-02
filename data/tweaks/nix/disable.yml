@@ -1,0 +1,50 @@
+---
+# ansible playbook to uninstall Nix
+
+- name: Execute the Determinate Systems Nix uninstaller
+  hosts: localhost
+  connection: local
+  become: true
+  gather_facts: true
+  tasks:
+      - name: Ensure path in /tmp for storing installer
+        ansible.builtin.file:
+            path: /tmp/nix-installer-tweak/
+            state: directory
+            owner: root
+            group: root
+      - name: Get Determinate Systems Nix installer
+        ansible.builtin.get_url:
+            dest: /tmp/nix-installer-tweak/
+            url: https://install.determinate.systems/nix
+            mode: 0755
+      - name: Execute Uninstaller
+        ansible.builtin.shell:
+            cmd: /tmp/nix-installer-tweak/nix-installer.sh uninstall --no-confirm
+      - name: Unmount /nix and remove /nix from /etc/fstab
+        ansible.posix.mount:
+          path: /nix
+          state: absent
+      - name: Get device name for the root filesystem
+        ansible.builtin.shell:
+          cmd: df -P / | tail -n1 | awk '{print $1}'
+        register: root_device
+        changed_when: false
+      - name: Get UUID of the btrfs root filesystem
+        ansible.builtin.shell:
+          cmd: blkid -s UUID -o value "{{ root_device.stdout }}"
+        register: btrfs_uuid
+        changed_when: false
+      - name: Remove Nix btrfs subvolume
+        community.general.btrfs_subvolume:
+            name: /nix
+            filesystem_device: "{{ root_device.stdout }}"
+            state: absent
+      - name: Delete /nix
+        ansible.builtin.file:
+            name: /nix
+            state: absent
+      - name: Cleanup
+        ansible.builtin.file:
+          name: /tmp/nix-installer-tweak
+          state: absent
