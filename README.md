@@ -1,6 +1,6 @@
 # um
 
-The Ultramarine CLI. Currently only provides general system status.
+The Ultramarine CLI. More informatio can be found on [our wiki](https://wiki.ultramarine-linux.org/en/usage/umcli/.
 
 ## 📦 Dependencies
 
