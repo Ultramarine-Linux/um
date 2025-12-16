@@ -1,0 +1,64 @@
+---
+# ansible playbook to install Nix
+
+- name: Execute the Determinate Systems Nix installer
+  hosts: localhost
+  connection: local
+  become: true
+  gather_facts: true
+  tasks:
+      - name: Get device name of the root filesystem
+        ansible.builtin.shell:
+          cmd: df -P / | tail -n1 | awk '{print $1}'
+        register: root_device
+        changed_when: false
+      - name: Get UUID
+        ansible.builtin.shell:
+          cmd: blkid -s UUID -o value "{{ root_device.stdout }}"
+        register: btrfs_uuid
+        changed_when: false
+      - name: Create Nix btrfs subvolume
+        community.general.btrfs_subvolume:
+            name: /nix
+            filesystem_device: "{{ root_device.stdout }}"
+            autmount: true
+      - name: Ensure /nix exists for subvol mount path
+        ansible.builtin.file:
+            path: /nix
+            state: directory
+            owner: root
+            group: root
+      # We mount ephemerally first to make sure we fail if this doesn't work
+      # instead of cursing /etc/fstab to a failed state
+      - name: Mount /nix
+        ansible.builtin.shell:
+          cmd: mount -o "subvol=nix,noatime,compress=zstd:7" UUID={{ btrfs_uuid.stdout }} /nix
+      # In a just world, state: mounted in the below task would do the above task.
+      # Our world is not just. Our world is not kind. ansible.posix.mount
+      # does not have any idea what a subvol is and will try (and fail)
+      # to unmount root.
+      - name: Add Nix subvolume to /etc/fstab
+        ansible.posix.mount:
+            src: "UUID={{ btrfs_uuid.stdout }}"
+            path: /nix
+            fstype: btrfs
+            opts: subvol=nix,noatime,compress=zstd:7
+            state: present
+      - name: Ensure path in /tmp for storing installer
+        ansible.builtin.file:
+            path: /tmp/nix-installer-tweak/
+            state: directory
+            owner: root
+            group: root
+      - name: Get Determinate Systems Nix installer
+        ansible.builtin.get_url:
+            dest: /tmp/nix-installer-tweak/
+            url: https://install.determinate.systems/nix
+            mode: 0755
+      - name: Execute Installer
+        ansible.builtin.shell:
+            cmd: /tmp/nix-installer-tweak/nix-installer.sh install --no-confirm
+      - name: Cleanup
+        ansible.builtin.file:
+          name: /tmp/nix-installer-tweak
+          state: absent
