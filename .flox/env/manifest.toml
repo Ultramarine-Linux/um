@@ -1,0 +1,33 @@
+schema-version = "1.10.0"
+
+[install]
+go.pkg-path = "go"
+go.version = "^1.23.0"
+ansible.pkg-path = "ansible"
+rpm.pkg-path = "rpm"
+rpm.outputs = ["out", "dev"]
+flatpak.pkg-path = "flatpak"
+flatpak.outputs = ["out", "dev"]
+
+[hook]
+on-activate = """
+
+  # Point GOENV to Flox environment cache
+  export GOENV="$FLOX_ENV_CACHE/goenv"
+
+  go mod download
+  
+  echo ""
+  echo "you're inside a Flox environment, use the Go toolchain like you normally would"
+  echo ""
+  echo "Contact Jaiden for help with Flox @ Fyra"
+  echo ""
+  echo ""
+  
+"""
+
+[build]
+
+
+[options]
+systems = ["aarch64-linux", "x86_64-linux"]

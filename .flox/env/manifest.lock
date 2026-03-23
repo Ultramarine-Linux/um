@@ -1,0 +1,303 @@
+{
+  "lockfile-version": 1,
+  "manifest": {
+    "schema-version": "1.10.0",
+    "install": {
+      "ansible": {
+        "pkg-path": "ansible"
+      },
+      "flatpak": {
+        "pkg-path": "flatpak",
+        "outputs": [
+          "out",
+          "dev"
+        ]
+      },
+      "go": {
+        "pkg-path": "go",
+        "version": "^1.23.0"
+      },
+      "rpm": {
+        "pkg-path": "rpm",
+        "outputs": [
+          "out",
+          "dev"
+        ]
+      }
+    },
+    "hook": {
+      "on-activate": "\n  # Point GOENV to Flox environment cache\n  export GOENV=\"$FLOX_ENV_CACHE/goenv\"\n\n  go mod download\n  \n  echo \"\"\n  echo \"you're inside a Flox environment, use the Go toolchain like you normally would\"\n  echo \"\"\n  echo \"Contact Jaiden for help with Flox @ Fyra\"\n  echo \"\"\n  echo \"\"\n  \n"
+    },
+    "options": {
+      "systems": [
+        "aarch64-linux",
+        "x86_64-linux"
+      ]
+    }
+  },
+  "packages": [
+    {
+      "attr_path": "ansible",
+      "broken": false,
+      "derivation": "/nix/store/4v1y60z7nchpf5nkchlqfgbj1llhpxiq-python3.13-ansible-core-2.20.3.drv",
+      "description": "Radically simple IT automation",
+      "install_id": "ansible",
+      "license": "GPL-3.0-or-later",
+      "locked_url": "https://github.com/flox/nixpkgs?rev=b40629efe5d6ec48dd1efba650c797ddbd39ace0",
+      "name": "ansible-core-2.20.3",
+      "pname": "ansible",
+      "rev": "b40629efe5d6ec48dd1efba650c797ddbd39ace0",
+      "rev_count": 964859,
+      "rev_date": "2026-03-18T08:17:15Z",
+      "scrape_date": "2026-03-20T01:11:37.261013Z",
+      "stabilities": [
+        "staging",
+        "unstable"
+      ],
+      "unfree": false,
+      "version": "2.20.3",
+      "outputs_to_install": [
+        "out"
+      ],
+      "outputs": {
+        "dist": "/nix/store/rwlla62d875g2zwkjyqaq4wx5yphqig3-python3.13-ansible-core-2.20.3-dist",
+        "out": "/nix/store/jqkadib52rgfcg48a4dxaw67vgrnx8i2-python3.13-ansible-core-2.20.3"
+      },
+      "system": "aarch64-linux",
+      "group": "toplevel",
+      "priority": 5
+    },
+    {
+      "attr_path": "ansible",
+      "broken": false,
+      "derivation": "/nix/store/s7l2n9fy64gr93i0i4l162my078is1wq-python3.13-ansible-core-2.20.3.drv",
+      "description": "Radically simple IT automation",
+      "install_id": "ansible",
+      "license": "GPL-3.0-or-later",
+      "locked_url": "https://github.com/flox/nixpkgs?rev=b40629efe5d6ec48dd1efba650c797ddbd39ace0",
+      "name": "ansible-core-2.20.3",
+      "pname": "ansible",
+      "rev": "b40629efe5d6ec48dd1efba650c797ddbd39ace0",
+      "rev_count": 964859,
+      "rev_date": "2026-03-18T08:17:15Z",
+      "scrape_date": "2026-03-20T02:16:24.313097Z",
+      "stabilities": [
+        "staging",
+        "unstable"
+      ],
+      "unfree": false,
+      "version": "2.20.3",
+      "outputs_to_install": [
+        "out"
+      ],
+      "outputs": {
+        "dist": "/nix/store/m58x5lspmzwkas2j363mqf7d2i66cbni-python3.13-ansible-core-2.20.3-dist",
+        "out": "/nix/store/y5wsll27gzbiph2gl3lq8xd9ccxzvp4b-python3.13-ansible-core-2.20.3"
+      },
+      "system": "x86_64-linux",
+      "group": "toplevel",
+      "priority": 5
+    },
+    {
+      "attr_path": "flatpak",
+      "broken": false,
+      "derivation": "/nix/store/0hhalk5v10dxg0b6ib1j9c7cyrxln866-flatpak-1.16.3.drv",
+      "description": "Linux application sandboxing and distribution framework",
+      "install_id": "flatpak",
+      "license": "LGPL-2.1-or-later",
+      "locked_url": "https://github.com/flox/nixpkgs?rev=b40629efe5d6ec48dd1efba650c797ddbd39ace0",
+      "name": "flatpak-1.16.3",
+      "pname": "flatpak",
+      "rev": "b40629efe5d6ec48dd1efba650c797ddbd39ace0",
+      "rev_count": 964859,
+      "rev_date": "2026-03-18T08:17:15Z",
+      "scrape_date": "2026-03-20T01:11:38.777308Z",
+      "stabilities": [
+        "staging",
+        "unstable"
+      ],
+      "unfree": false,
+      "version": "1.16.3",
+      "outputs_to_install": [
+        "man",
+        "out"
+      ],
+      "outputs": {
+        "debug": "/nix/store/by6pnfygispp5jdrhbi0m5cfd7zqqz6z-flatpak-1.16.3-debug",
+        "dev": "/nix/store/f1sphn4rsywy4l0z49hqzpm2bjppqspi-flatpak-1.16.3-dev",
+        "devdoc": "/nix/store/30sswk6197f70iqj0bg8qibynqqycj2z-flatpak-1.16.3-devdoc",
+        "doc": "/nix/store/q0i76jqvsxwdqcq2r1jd78yw6shik6is-flatpak-1.16.3-doc",
+        "man": "/nix/store/xaq8sbfkyyp631f1i1kyh3kvys55l25j-flatpak-1.16.3-man",
+        "out": "/nix/store/rl82ar6v6pb9k23rqqvjzvwzj42cn0l8-flatpak-1.16.3"
+      },
+      "system": "aarch64-linux",
+      "group": "toplevel",
+      "priority": 5
+    },
+    {
+      "attr_path": "flatpak",
+      "broken": false,
+      "derivation": "/nix/store/b1nq8kn2rymf1lp62nvhzs36fwxcxcp6-flatpak-1.16.3.drv",
+      "description": "Linux application sandboxing and distribution framework",
+      "install_id": "flatpak",
+      "license": "LGPL-2.1-or-later",
+      "locked_url": "https://github.com/flox/nixpkgs?rev=b40629efe5d6ec48dd1efba650c797ddbd39ace0",
+      "name": "flatpak-1.16.3",
+      "pname": "flatpak",
+      "rev": "b40629efe5d6ec48dd1efba650c797ddbd39ace0",
+      "rev_count": 964859,
+      "rev_date": "2026-03-18T08:17:15Z",
+      "scrape_date": "2026-03-20T02:16:26.089170Z",
+      "stabilities": [
+        "staging",
+        "unstable"
+      ],
+      "unfree": false,
+      "version": "1.16.3",
+      "outputs_to_install": [
+        "man",
+        "out"
+      ],
+      "outputs": {
+        "debug": "/nix/store/gpqz3gx27gsli22qhk5zq2z8slkhnhq8-flatpak-1.16.3-debug",
+        "dev": "/nix/store/b6y2r7pyl9bsk0p1l9w9r4afxzc87bmj-flatpak-1.16.3-dev",
+        "devdoc": "/nix/store/6nap9pz5bgav2bjjhlh1ib4mwmxkplfl-flatpak-1.16.3-devdoc",
+        "doc": "/nix/store/vj3nb9nzsc7xr6mz14hbhhxsm2r8lg8s-flatpak-1.16.3-doc",
+        "man": "/nix/store/fxzlkkgnfwwq0i7bgrbgn48qaskf17jk-flatpak-1.16.3-man",
+        "out": "/nix/store/ydhmhp6z5ydpv4r8rhi1cr1sncyavnhk-flatpak-1.16.3"
+      },
+      "system": "x86_64-linux",
+      "group": "toplevel",
+      "priority": 5
+    },
+    {
+      "attr_path": "go",
+      "broken": false,
+      "derivation": "/nix/store/rygzd1f3h7cza5p7y0ja3nzcyyx4h7zx-go-1.25.7.drv",
+      "description": "Go Programming language",
+      "install_id": "go",
+      "license": "BSD-3-Clause",
+      "locked_url": "https://github.com/flox/nixpkgs?rev=b40629efe5d6ec48dd1efba650c797ddbd39ace0",
+      "name": "go-1.25.7",
+      "pname": "go",
+      "rev": "b40629efe5d6ec48dd1efba650c797ddbd39ace0",
+      "rev_count": 964859,
+      "rev_date": "2026-03-18T08:17:15Z",
+      "scrape_date": "2026-03-20T01:11:39.841420Z",
+      "stabilities": [
+        "staging",
+        "unstable"
+      ],
+      "unfree": false,
+      "version": "1.25.7",
+      "outputs_to_install": [
+        "out"
+      ],
+      "outputs": {
+        "out": "/nix/store/2i6kcj0f0xirrblpl43k2yr673bhf2c5-go-1.25.7"
+      },
+      "system": "aarch64-linux",
+      "group": "toplevel",
+      "priority": 5
+    },
+    {
+      "attr_path": "go",
+      "broken": false,
+      "derivation": "/nix/store/fq8965avl2cbgcx0ni9xp7ixh8b8k2ki-go-1.25.7.drv",
+      "description": "Go Programming language",
+      "install_id": "go",
+      "license": "BSD-3-Clause",
+      "locked_url": "https://github.com/flox/nixpkgs?rev=b40629efe5d6ec48dd1efba650c797ddbd39ace0",
+      "name": "go-1.25.7",
+      "pname": "go",
+      "rev": "b40629efe5d6ec48dd1efba650c797ddbd39ace0",
+      "rev_count": 964859,
+      "rev_date": "2026-03-18T08:17:15Z",
+      "scrape_date": "2026-03-20T02:16:27.242459Z",
+      "stabilities": [
+        "staging",
+        "unstable"
+      ],
+      "unfree": false,
+      "version": "1.25.7",
+      "outputs_to_install": [
+        "out",
+        "out"
+      ],
+      "outputs": {
+        "out": "/nix/store/pz4pxhmlqd3q72crp2sx90k85gf2rqyp-go-1.25.7"
+      },
+      "system": "x86_64-linux",
+      "group": "toplevel",
+      "priority": 5
+    },
+    {
+      "attr_path": "rpm",
+      "broken": false,
+      "derivation": "/nix/store/xdlbwfi1fc190ki50l2c8yiz9hc8npj2-rpm-4.20.1.drv",
+      "description": "RPM package manager",
+      "install_id": "rpm",
+      "license": "[ GPL-2.0-or-later, LGPL-2.1-or-later ]",
+      "locked_url": "https://github.com/flox/nixpkgs?rev=b40629efe5d6ec48dd1efba650c797ddbd39ace0",
+      "name": "rpm-4.20.1",
+      "pname": "rpm",
+      "rev": "b40629efe5d6ec48dd1efba650c797ddbd39ace0",
+      "rev_count": 964859,
+      "rev_date": "2026-03-18T08:17:15Z",
+      "scrape_date": "2026-03-20T01:13:40.984977Z",
+      "stabilities": [
+        "staging",
+        "unstable"
+      ],
+      "unfree": false,
+      "version": "4.20.1",
+      "outputs_to_install": [
+        "man",
+        "out"
+      ],
+      "outputs": {
+        "debug": "/nix/store/918js4cps5ikrgpc6naxygfyclqvy6xj-rpm-4.20.1-debug",
+        "dev": "/nix/store/jxp93bbibq7bgsjan6l9caahcbv9k776-rpm-4.20.1-dev",
+        "man": "/nix/store/p7j1wnc20l4qkgarzv933mnbmqc1mr3f-rpm-4.20.1-man",
+        "out": "/nix/store/i8z5hlzhhh69b1x9vhxgkll5wgdvvvpg-rpm-4.20.1"
+      },
+      "system": "aarch64-linux",
+      "group": "toplevel",
+      "priority": 5
+    },
+    {
+      "attr_path": "rpm",
+      "broken": false,
+      "derivation": "/nix/store/l3nhi2ingqn64n6wah8qz9w9gxwv4l23-rpm-4.20.1.drv",
+      "description": "RPM package manager",
+      "install_id": "rpm",
+      "license": "[ GPL-2.0-or-later, LGPL-2.1-or-later ]",
+      "locked_url": "https://github.com/flox/nixpkgs?rev=b40629efe5d6ec48dd1efba650c797ddbd39ace0",
+      "name": "rpm-4.20.1",
+      "pname": "rpm",
+      "rev": "b40629efe5d6ec48dd1efba650c797ddbd39ace0",
+      "rev_count": 964859,
+      "rev_date": "2026-03-18T08:17:15Z",
+      "scrape_date": "2026-03-20T02:18:35.680352Z",
+      "stabilities": [
+        "staging",
+        "unstable"
+      ],
+      "unfree": false,
+      "version": "4.20.1",
+      "outputs_to_install": [
+        "man",
+        "out"
+      ],
+      "outputs": {
+        "debug": "/nix/store/lhshpqny7dilrra3xb6qfk3nvbij7qgm-rpm-4.20.1-debug",
+        "dev": "/nix/store/jz0c3rk6ydflij7686yhdmx36pvskp9p-rpm-4.20.1-dev",
+        "man": "/nix/store/cnyn7658alzhvgny4ai01g2irql5fn1c-rpm-4.20.1-man",
+        "out": "/nix/store/aiwyyh2p343is82n7jj9zbai5vvy8nf6-rpm-4.20.1"
+      },
+      "system": "x86_64-linux",
+      "group": "toplevel",
+      "priority": 5
+    }
+  ]
+}
