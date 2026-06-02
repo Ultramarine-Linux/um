@@ -22,9 +22,12 @@ package main
 
 import (
 	"fmt"
+	"os"
+	"os/exec"
 
 	"github.com/Ultramarine-Linux/um/env"
 	"github.com/Ultramarine-Linux/um/pkg/util"
+	"github.com/charmbracelet/huh"
 	"github.com/urfave/cli/v2"
 )
 
@@ -59,21 +62,52 @@ func envApplyChanges(c *cli.Context) error {
 
 // initializes a new environment by creating an environment.toml and a template Containerfile
 func envInit(c *cli.Context) error {
+	var confirmed bool
+
 	baseImage, err := env.GetBootcImage()
 	if err != nil {
 		return err
+	}
+
+	if err := huh.NewConfirm().
+		Title("Initialize the local bootc derivation?").
+		Description(fmt.Sprintf("This will create environment.toml and a template Containerfile based on `%s` at `%s`."+
+			"\n\n"+
+			"The system bootc image will be switched to `%s` and updates must now be managed via `um env update`.", baseImage, env.UmEnvContext, env.UmEnvManagedImage)).
+		Affirmative("Initialize").
+		Negative("Cancel").
+		Value(&confirmed).
+		Run(); err != nil {
+		return err
+	}
+
+	if !confirmed {
+		fmt.Println("Aborting...")
+		return nil
 	}
 
 	if err := env.InitEnvironment(baseImage); err != nil {
 		return err
 	}
 
-	fmt.Println("Initialized environment in /var/um/env")
+	fmt.Println("Initialized environment in", env.UmEnvContext)
+
+	fmt.Println("Building initial derivation...")
+
+	if err := envBuild(c); err != nil {
+		return err
+	}
+
+	fmt.Println("Initial derivation built successfully, switching to um managed image...")
+
+	if err := env.EnvBootcSwitch(); err != nil {
+		return err
+	}
 
 	return nil
 }
 
-func buildEnv(c *cli.Context) error {
+func envBuild(c *cli.Context) error {
 	util.SudoIfNeeded([]string{})
 	manifest, err := env.LoadEnvManifest()
 	if err != nil {
@@ -110,6 +144,28 @@ func envAddPackage(c *cli.Context) error {
 	}
 
 	fmt.Println("Package added successfully.")
+
+	return nil
+}
+
+func envUpdate(c *cli.Context) error {
+	util.SudoIfNeeded([]string{})
+
+	if err := envBuild(c); err != nil {
+		return err
+	}
+
+	fmt.Println("Rebuilt environment image, applying changes with bootc")
+
+	// bootc update actually pulls straight from containers-storage,
+	// so we can simply just do this instead of bootc switch again, assuming
+	// um env is already initialized
+	bootcCmd := exec.Command("bootc", "update")
+	bootcCmd.Stdout = os.Stdout
+	bootcCmd.Stderr = os.Stderr
+	if err := bootcCmd.Run(); err != nil {
+		return err
+	}
 
 	return nil
 }

@@ -9,13 +9,15 @@ import (
 	"os/exec"
 	"text/template"
 
+	"slices"
+
 	"github.com/BurntSushi/toml"
 )
 
-const umEnvContext = "/var/um/env"
-const umEnvManifest = umEnvContext + "/environment.toml"
-const umEnvContainerfile = umEnvContext + "/Containerfile"
-const umEnvManagedImage = "localhost/um-env"
+const UmEnvContext = "/var/um/env"
+const UmEnvManifest = UmEnvContext + "/environment.toml"
+const UmEnvContainerfile = UmEnvContext + "/Containerfile"
+const UmEnvManagedImage = "localhost/um-env"
 
 //go:embed Containerfile.gotmpl
 var containerfileTemplateSource string
@@ -39,17 +41,11 @@ type containerfileTemplateData struct {
 }
 
 func containsPackage(packages []string, packageName string) bool {
-	for _, existing := range packages {
-		if existing == packageName {
-			return true
-		}
-	}
-
-	return false
+	return slices.Contains(packages, packageName)
 }
 
 func InitEnvironment(baseImage string) error {
-	if err := os.MkdirAll(umEnvContext, 0o755); err != nil {
+	if err := os.MkdirAll(UmEnvContext, 0o755); err != nil {
 		return err
 	}
 
@@ -61,7 +57,7 @@ func InitEnvironment(baseImage string) error {
 		},
 	}
 
-	manifestFile, err := os.OpenFile(umEnvManifest, os.O_WRONLY|os.O_CREATE|os.O_EXCL, 0o644)
+	manifestFile, err := os.OpenFile(UmEnvManifest, os.O_WRONLY|os.O_CREATE|os.O_EXCL, 0o644)
 	if err != nil {
 		return err
 	}
@@ -71,7 +67,7 @@ func InitEnvironment(baseImage string) error {
 		return err
 	}
 
-	containerfile, err := os.OpenFile(umEnvContainerfile, os.O_WRONLY|os.O_CREATE|os.O_EXCL, 0o644)
+	containerfile, err := os.OpenFile(UmEnvContainerfile, os.O_WRONLY|os.O_CREATE|os.O_EXCL, 0o644)
 	if err != nil {
 		return err
 	}
@@ -88,12 +84,12 @@ func InitEnvironment(baseImage string) error {
 
 func LoadEnvManifest() (*EnvManifest, error) {
 	// load from file
-	data, err := os.ReadFile(umEnvManifest)
+	data, err := os.ReadFile(UmEnvManifest)
 	if err != nil {
 		return nil, err
 	}
 	// set CWD
-	if err := os.Chdir(umEnvContext); err != nil {
+	if err := os.Chdir(UmEnvContext); err != nil {
 		return nil, err
 	}
 
@@ -111,7 +107,7 @@ func (e *EnvManifest) Save() error {
 	if err != nil {
 		return err
 	}
-	return os.WriteFile(umEnvManifest, data, 0o644)
+	return os.WriteFile(UmEnvManifest, data, 0o644)
 }
 
 func (e *EnvManifest) AddPackage(packageName string) bool {
@@ -136,12 +132,12 @@ func appendPackageAction(args []string, action string, packages []string) []stri
 }
 
 func (p *Packages) CommitTransaction() error {
-	args := []string{"do"}
+	args := []string{"do", "-y"}
 	args = appendPackageAction(args, "install", p.Install)
 	args = appendPackageAction(args, "remove", p.Remove)
 	args = appendPackageAction(args, "reinstall", p.Reinstall)
 
-	if len(args) == 1 {
+	if len(args) == 2 {
 		log.Println("no package changes to apply")
 		return nil
 	}
@@ -165,10 +161,10 @@ func (e *EnvManifest) BuildContainerfile() error {
 		"build",
 		"--pull=newer",
 		"-f",
-		umEnvContainerfile,
+		UmEnvContainerfile,
 		"-t",
-		umEnvManagedImage,
-		umEnvContext,
+		UmEnvManagedImage,
+		UmEnvContext,
 	}
 	cmd := exec.Command("podman", podmanArgs...)
 	cmd.Stdout = os.Stdout
@@ -179,4 +175,13 @@ func (e *EnvManifest) BuildContainerfile() error {
 	}
 
 	return nil
+}
+
+func EnvBootcSwitch() error {
+	args := []string{"switch", "--transport=containers-storage", UmEnvManagedImage}
+	cmd := exec.Command("bootc", args...)
+	cmd.Stdout = os.Stdout
+	cmd.Stderr = os.Stderr
+
+	return cmd.Run()
 }

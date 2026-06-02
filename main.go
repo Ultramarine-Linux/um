@@ -81,9 +81,8 @@ func runCli() error {
 			},
 
 			{
-				Name:   "env",
-				Usage:  "Manage local bootc derivations",
-				Action: envStatus,
+				Name:  "env",
+				Usage: "Manage local bootc derivations",
 				Subcommands: []*cli.Command{
 					{
 						Name:   "init",
@@ -93,7 +92,7 @@ func runCli() error {
 					{
 						Name:   "build",
 						Usage:  "Build the local derivation from a Containerfile",
-						Action: buildEnv,
+						Action: envBuild,
 					},
 					{
 						Name:   "add",
@@ -104,6 +103,11 @@ func runCli() error {
 						Name:   "apply-changes",
 						Usage:  "Apply pending changes to the bootc environment",
 						Action: envApplyChanges,
+					},
+					{
+						Name:   "update",
+						Usage:  "Update the base image and rebuild the environment",
+						Action: envUpdate,
 					},
 				},
 			},
