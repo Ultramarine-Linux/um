@@ -145,6 +145,27 @@ func envAddPackage(c *cli.Context) error {
 
 	fmt.Println("Package added successfully.")
 
+	var applyLive bool
+	if c.Bool("apply-live") {
+		applyLive = true
+	}
+
+	if applyLive {
+		fmt.Println("Applying changes live...")
+
+		// enable bootc usr-overlay
+
+		if err := exec.Command("bootc", "usr-overlay").Run(); err != nil {
+			return err
+		}
+
+		if err := envApplyChanges(c); err != nil {
+			return err
+		}
+	}
+
+	fmt.Println("Added packages successfully. Commit pending changes with `um env update`")
+
 	return nil
 }
 
