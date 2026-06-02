@@ -201,7 +201,7 @@ func envRemovePackage(c *cli.Context) error {
 	}
 
 	fmt.Println("Packages removed successfully.")
-	fmt.Println("Committed pending changes with `um env update`")
+	fmt.Println("Commit pending changes with `um env update`")
 
 	return nil
 }
