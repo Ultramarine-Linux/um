@@ -123,6 +123,29 @@ func envBuild(c *cli.Context) error {
 	return nil
 }
 
+func handleApplyLive(c *cli.Context) error {
+	var applyLive bool
+	if c.Bool("apply-live") {
+		applyLive = true
+	}
+
+	if applyLive {
+		fmt.Println("Applying changes live...")
+
+		// enable bootc usr-overlay
+
+		if err := exec.Command("bootc", "usr-overlay").Run(); err != nil {
+			return err
+		}
+
+		if err := envApplyChanges(c); err != nil {
+			return err
+		}
+	}
+
+	return nil
+}
+
 // add a package to the environment
 func envAddPackage(c *cli.Context) error {
 	util.SudoIfNeeded([]string{})
@@ -143,28 +166,42 @@ func envAddPackage(c *cli.Context) error {
 		return err
 	}
 
-	fmt.Println("Package added successfully.")
-
-	var applyLive bool
-	if c.Bool("apply-live") {
-		applyLive = true
+	if err := handleApplyLive(c); err != nil {
+		return err
 	}
 
-	if applyLive {
-		fmt.Println("Applying changes live...")
-
-		// enable bootc usr-overlay
-
-		if err := exec.Command("bootc", "usr-overlay").Run(); err != nil {
-			return err
-		}
-
-		if err := envApplyChanges(c); err != nil {
-			return err
-		}
-	}
+	fmt.Println("Packages added successfully.")
 
 	fmt.Println("Added packages successfully. Commit pending changes with `um env update`")
+
+	return nil
+}
+
+func envRemovePackage(c *cli.Context) error {
+	util.SudoIfNeeded([]string{})
+	manifest, err := env.LoadEnvManifest()
+	if err != nil {
+		return err
+	}
+
+	for _, pkg := range c.Args().Slice() {
+		if manifest.RemovePackage(pkg) {
+			fmt.Println("Removed package from install list:", pkg)
+		} else {
+			fmt.Println("Adding package to removal list:", pkg)
+		}
+	}
+
+	if err := manifest.Save(); err != nil {
+		return err
+	}
+
+	if err := handleApplyLive(c); err != nil {
+		return err
+	}
+
+	fmt.Println("Packages removed successfully.")
+	fmt.Println("Committed pending changes with `um env update`")
 
 	return nil
 }

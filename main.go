@@ -100,6 +100,11 @@ func runCli() error {
 						Action: envAddPackage,
 					},
 					{
+						Name:   "remove",
+						Usage:  "Remove a package from the environment",
+						Action: envRemovePackage,
+					},
+					{
 						Name:   "apply-changes",
 						Usage:  "Apply pending changes to the bootc environment",
 						Action: envApplyChanges,

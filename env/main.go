@@ -44,6 +44,12 @@ func containsPackage(packages []string, packageName string) bool {
 	return slices.Contains(packages, packageName)
 }
 
+func removePackage(packages []string, packageName string) []string {
+	return slices.DeleteFunc(packages, func(existing string) bool {
+		return existing == packageName
+	})
+}
+
 func InitEnvironment(baseImage string) (err error) {
 	if err := os.MkdirAll(UmEnvContext, 0o755); err != nil {
 		return err
@@ -134,6 +140,31 @@ func (e *EnvManifest) AddPackage(packageName string) bool {
 	e.Packages.Install = append(e.Packages.Install, packageName)
 
 	return true
+}
+
+func (e *EnvManifest) ReinstallPackage(packageName string) bool {
+	if containsPackage(e.Packages.Reinstall, packageName) {
+		return false
+	}
+
+	e.Packages.Reinstall = append(e.Packages.Reinstall, packageName)
+
+	return true
+}
+
+func (e *EnvManifest) RemovePackage(packageName string) bool {
+	// if package is in the add list, simply remove it
+	if containsPackage(e.Packages.Install, packageName) {
+		e.Packages.Install = removePackage(e.Packages.Install, packageName)
+		return true
+	}
+
+	// if package is not, then add it to the remove list
+	if !containsPackage(e.Packages.Remove, packageName) {
+		e.Packages.Remove = append(e.Packages.Remove, packageName)
+	}
+
+	return false
 }
 
 func appendPackageAction(args []string, action string, packages []string) []string {
