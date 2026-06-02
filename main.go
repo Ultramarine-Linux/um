@@ -80,6 +80,19 @@ func runCli() error {
 				},
 			},
 
+			{
+				Name: "env",
+				Usage: "Manage local bootc derivations",
+				Action: envStatus,
+				Subcommands: []*cli.Command{
+					{
+						Name:   "apply-changes",
+						Usage:  "Apply pending changes to the bootc environment",
+						Action: envApplyChanges,
+					},
+				},
+			},
+
 			// {
 			// 	Name:   "experiments",
 			// 	Usage:  "manage Ultramarine Linux experiments, a preview of features to come",
