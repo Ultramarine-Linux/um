@@ -1,0 +1,4 @@
+FROM {{ .BaseImage }}
+
+# Insert your changes here, the following RUN directive commits changes from environment.toml
+RUN um env apply-changes

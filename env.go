@@ -24,9 +24,9 @@ import (
 	"fmt"
 
 	"github.com/Ultramarine-Linux/um/env"
+	"github.com/Ultramarine-Linux/um/pkg/util"
 	"github.com/urfave/cli/v2"
 )
-
 
 // todo: don't just print image name lol
 func envStatus(c *cli.Context) error {
@@ -53,6 +53,63 @@ func envApplyChanges(c *cli.Context) error {
 	}
 
 	fmt.Println("Changes applied successfully.")
-	
+
+	return nil
+}
+
+// initializes a new environment by creating an environment.toml and a template Containerfile
+func envInit(c *cli.Context) error {
+	baseImage, err := env.GetBootcImage()
+	if err != nil {
+		return err
+	}
+
+	if err := env.InitEnvironment(baseImage); err != nil {
+		return err
+	}
+
+	fmt.Println("Initialized environment in /var/um/env")
+
+	return nil
+}
+
+func buildEnv(c *cli.Context) error {
+	util.SudoIfNeeded([]string{})
+	manifest, err := env.LoadEnvManifest()
+	if err != nil {
+		return err
+	}
+
+	if err := manifest.BuildContainerfile(); err != nil {
+		return err
+	}
+
+	fmt.Println("Containerfile built successfully.")
+
+	return nil
+}
+
+// add a package to the environment
+func envAddPackage(c *cli.Context) error {
+	util.SudoIfNeeded([]string{})
+	manifest, err := env.LoadEnvManifest()
+	if err != nil {
+		return err
+	}
+
+	for _, pkg := range c.Args().Slice() {
+		if manifest.AddPackage(pkg) {
+			fmt.Println("Adding package:", pkg)
+		} else {
+			fmt.Println("Package already exists:", pkg)
+		}
+	}
+
+	if err := manifest.Save(); err != nil {
+		return err
+	}
+
+	fmt.Println("Package added successfully.")
+
 	return nil
 }

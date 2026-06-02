@@ -3,15 +3,24 @@
 package env
 
 import (
+	_ "embed"
 	"log"
 	"os"
 	"os/exec"
+	"text/template"
 
 	"github.com/BurntSushi/toml"
 )
 
 const umEnvContext = "/var/um/env"
 const umEnvManifest = umEnvContext + "/environment.toml"
+const umEnvContainerfile = umEnvContext + "/Containerfile"
+const umEnvManagedImage = "localhost/um-env"
+
+//go:embed Containerfile.gotmpl
+var containerfileTemplateSource string
+
+var containerfileTemplate = template.Must(template.New("Containerfile").Parse(containerfileTemplateSource))
 
 // stuff to do in the environment
 type EnvManifest struct {
@@ -23,6 +32,58 @@ type Packages struct {
 	Install   []string `toml:"install"`
 	Remove    []string `toml:"remove"`
 	Reinstall []string `toml:"reinstall"`
+}
+
+type containerfileTemplateData struct {
+	BaseImage string
+}
+
+func containsPackage(packages []string, packageName string) bool {
+	for _, existing := range packages {
+		if existing == packageName {
+			return true
+		}
+	}
+
+	return false
+}
+
+func InitEnvironment(baseImage string) error {
+	if err := os.MkdirAll(umEnvContext, 0o755); err != nil {
+		return err
+	}
+
+	manifest := EnvManifest{
+		Packages: Packages{
+			Install:   []string{},
+			Remove:    []string{},
+			Reinstall: []string{},
+		},
+	}
+
+	manifestFile, err := os.OpenFile(umEnvManifest, os.O_WRONLY|os.O_CREATE|os.O_EXCL, 0o644)
+	if err != nil {
+		return err
+	}
+	defer manifestFile.Close()
+
+	if err := toml.NewEncoder(manifestFile).Encode(manifest); err != nil {
+		return err
+	}
+
+	containerfile, err := os.OpenFile(umEnvContainerfile, os.O_WRONLY|os.O_CREATE|os.O_EXCL, 0o644)
+	if err != nil {
+		return err
+	}
+	defer containerfile.Close()
+
+	if err := containerfileTemplate.Execute(containerfile, containerfileTemplateData{
+		BaseImage: baseImage,
+	}); err != nil {
+		return err
+	}
+
+	return nil
 }
 
 func LoadEnvManifest() (*EnvManifest, error) {
@@ -42,6 +103,25 @@ func LoadEnvManifest() (*EnvManifest, error) {
 	}
 
 	return &manifest, nil
+}
+
+// saves the manifest to the specified path
+func (e *EnvManifest) Save() error {
+	data, err := toml.Marshal(e)
+	if err != nil {
+		return err
+	}
+	return os.WriteFile(umEnvManifest, data, 0o644)
+}
+
+func (e *EnvManifest) AddPackage(packageName string) bool {
+	if containsPackage(e.Packages.Install, packageName) {
+		return false
+	}
+
+	e.Packages.Install = append(e.Packages.Install, packageName)
+
+	return true
 }
 
 func appendPackageAction(args []string, action string, packages []string) []string {
@@ -77,4 +157,26 @@ func (p *Packages) CommitTransaction() error {
 // Apply changes to the environment
 func (e *EnvManifest) ApplyChanges() error {
 	return e.Packages.CommitTransaction()
+}
+
+func (e *EnvManifest) BuildContainerfile() error {
+	// run podman build -t
+	podmanArgs := []string{
+		"build",
+		"--pull=newer",
+		"-f",
+		umEnvContainerfile,
+		"-t",
+		umEnvManagedImage,
+		umEnvContext,
+	}
+	cmd := exec.Command("podman", podmanArgs...)
+	cmd.Stdout = os.Stdout
+	cmd.Stderr = os.Stderr
+
+	if err := cmd.Run(); err != nil {
+		return err
+	}
+
+	return nil
 }

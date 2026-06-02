@@ -81,10 +81,25 @@ func runCli() error {
 			},
 
 			{
-				Name: "env",
-				Usage: "Manage local bootc derivations",
+				Name:   "env",
+				Usage:  "Manage local bootc derivations",
 				Action: envStatus,
 				Subcommands: []*cli.Command{
+					{
+						Name:   "init",
+						Usage:  "Initialize the bootc environment manifest and Containerfile",
+						Action: envInit,
+					},
+					{
+						Name:   "build",
+						Usage:  "Build the local derivation from a Containerfile",
+						Action: buildEnv,
+					},
+					{
+						Name:   "add",
+						Usage:  "Add a package to the environment",
+						Action: envAddPackage,
+					},
 					{
 						Name:   "apply-changes",
 						Usage:  "Apply pending changes to the bootc environment",
