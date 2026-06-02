@@ -44,7 +44,7 @@ func containsPackage(packages []string, packageName string) bool {
 	return slices.Contains(packages, packageName)
 }
 
-func InitEnvironment(baseImage string) error {
+func InitEnvironment(baseImage string) (err error) {
 	if err := os.MkdirAll(UmEnvContext, 0o755); err != nil {
 		return err
 	}
@@ -61,7 +61,15 @@ func InitEnvironment(baseImage string) error {
 	if err != nil {
 		return err
 	}
-	defer manifestFile.Close()
+	defer func() {
+		if closeErr := manifestFile.Close(); closeErr != nil {
+			if err == nil {
+				err = closeErr
+			} else {
+				log.Printf("failed to close %s: %v", UmEnvManifest, closeErr)
+			}
+		}
+	}()
 
 	if err := toml.NewEncoder(manifestFile).Encode(manifest); err != nil {
 		return err
@@ -71,7 +79,15 @@ func InitEnvironment(baseImage string) error {
 	if err != nil {
 		return err
 	}
-	defer containerfile.Close()
+	defer func() {
+		if closeErr := containerfile.Close(); closeErr != nil {
+			if err == nil {
+				err = closeErr
+			} else {
+				log.Printf("failed to close %s: %v", UmEnvContainerfile, closeErr)
+			}
+		}
+	}()
 
 	if err := containerfileTemplate.Execute(containerfile, containerfileTemplateData{
 		BaseImage: baseImage,
