@@ -69,16 +69,20 @@ func envInit(c *cli.Context) error {
 		return err
 	}
 
-	if err := huh.NewConfirm().
-		Title("Initialize the local bootc derivation?").
-		Description(fmt.Sprintf("This will create environment.toml and a template Containerfile based on `%s` at `%s`."+
-			"\n\n"+
-			"The system bootc image will be switched to `%s` and updates must now be managed via `um env update`.", baseImage, env.UmEnvContext, env.UmEnvManagedImage)).
-		Affirmative("Initialize").
-		Negative("Cancel").
-		Value(&confirmed).
-		Run(); err != nil {
-		return err
+	if c.Bool("yes") {
+		confirmed = true
+	} else {
+		if err := huh.NewConfirm().
+			Title("Initialize the local bootc derivation?").
+			Description(fmt.Sprintf("This will create environment.toml and a template Containerfile based on `%s` at `%s`."+
+				"\n\n"+
+				"The system bootc image will be switched to `%s` and updates must now be managed via `um env update`.", baseImage, env.UmEnvContext, env.UmEnvManagedImage)).
+			Affirmative("Initialize").
+			Negative("Cancel").
+			Value(&confirmed).
+			Run(); err != nil {
+			return err
+		}
 	}
 
 	if !confirmed {

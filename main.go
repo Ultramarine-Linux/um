@@ -7,6 +7,19 @@ import (
 	"github.com/urfave/cli/v2"
 )
 
+const envPMHelperCategory string = "Package management helpers"
+
+var envApplyLiveFlag = &cli.BoolFlag{
+	Name:  "apply-live",
+	Usage: "Apply package changes live with bootc usr-overlay",
+}
+
+var yesFlag = &cli.BoolFlag{
+	Name:    "yes",
+	Aliases: []string{"y"},
+	Usage:   "Automatically confirm without prompting",
+}
+
 // TODO: pls refactor all of this mess
 
 func runCli() error {
@@ -42,11 +55,7 @@ func runCli() error {
 							"Tweaks can be of type 'oneshot' or 'toggle'. 'oneshot' tweaks can only be enabled once, while 'toggle' tweaks can also be disabled.",
 						Action: enableTweak,
 						Flags: []cli.Flag{
-							&cli.BoolFlag{
-								Name:    "yes",
-								Aliases: []string{"y"},
-								Usage:   "Automatically confirm enabling tweaks without prompting",
-							},
+							yesFlag,
 						},
 					},
 					{
@@ -57,11 +66,7 @@ func runCli() error {
 							"Only tweaks of type 'toggle' can be disabled. 'oneshot' tweaks cannot be reverted.",
 						Action: disableTweak,
 						Flags: []cli.Flag{
-							&cli.BoolFlag{
-								Name:    "yes",
-								Aliases: []string{"y"},
-								Usage:   "Automatically confirm disabling tweaks without prompting",
-							},
+							yesFlag,
 						},
 					},
 					{
@@ -88,21 +93,35 @@ func runCli() error {
 						Name:   "init",
 						Usage:  "Initialize the bootc environment manifest and Containerfile",
 						Action: envInit,
+						Flags: []cli.Flag{
+							yesFlag,
+						},
 					},
 					{
 						Name:   "build",
 						Usage:  "Build the local derivation from a Containerfile",
+						Aliases: []string{"b"},
 						Action: envBuild,
 					},
 					{
-						Name:   "add",
-						Usage:  "Add a package to the environment",
-						Action: envAddPackage,
+						Name:     "add",
+						Usage:    "Add a package to the environment",
+						Action:   envAddPackage,
+						Category: envPMHelperCategory,
+						Aliases: []string{"install", "i", "a", "in"},
+						Flags: []cli.Flag{
+							envApplyLiveFlag,
+						},
 					},
 					{
-						Name:   "remove",
-						Usage:  "Remove a package from the environment",
-						Action: envRemovePackage,
+						Name:     "remove",
+						Usage:    "Remove a package from the environment",
+						Action:   envRemovePackage,
+						Aliases: []string{"uninstall", "rm", "r"},
+						Category: envPMHelperCategory,
+						Flags: []cli.Flag{
+							envApplyLiveFlag,
+						},
 					},
 					{
 						Name:   "apply-changes",
