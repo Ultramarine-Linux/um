@@ -179,12 +179,17 @@ func appendPackageAction(args []string, action string, packages []string) []stri
 }
 
 func (p *Packages) CommitTransaction() error {
-	args := []string{"do", "-y"}
+	args := []string{
+		"do",
+		"-y",
+		"--setopt=keepcache=True",
+	}
+	defaultArgsCount := len(args)
 	args = appendPackageAction(args, "install", p.Install)
 	args = appendPackageAction(args, "remove", p.Remove)
 	args = appendPackageAction(args, "reinstall", p.Reinstall)
 
-	if len(args) == 2 {
+	if len(args) == defaultArgsCount {
 		log.Println("no package changes to apply")
 		return nil
 	}
