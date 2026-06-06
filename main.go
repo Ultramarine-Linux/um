@@ -91,7 +91,7 @@ func runCli() error {
 				Subcommands: []*cli.Command{
 					{
 						Name:   "init",
-						Usage:  "Initialize the bootc environment manifest and Containerfile",
+						Usage:  "Create a bootc environment manifest and containerfile",
 						Action: envInit,
 						Flags: []cli.Flag{
 							yesFlag,
