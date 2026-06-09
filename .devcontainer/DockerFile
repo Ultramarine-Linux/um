@@ -1,0 +1,11 @@
+FROM ghcr.io/ultramarine-linux/ultramarine:43
+
+RUN microdnf update -y && \
+    microdnf install -y --allowerasing \
+    tar \
+    gzip \
+    git \
+    curl \
+    procps-ng \
+    findutils && \
+    microdnf clean all

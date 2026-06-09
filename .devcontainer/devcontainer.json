@@ -1,6 +1,8 @@
 {
   "name": "umcli",
-  "image": "ghcr.io/ultramarine-linux/ultramarine:43",
+  "build": {
+    "dockerfile": "Dockerfile"
+  },
   "onCreateCommand": "sudo dnf install -y golang ansible flatpak flatpak-devel rpm-devel ansible-collection-ansible-posix",
   "forwardPorts": [],
   "customizations": {
