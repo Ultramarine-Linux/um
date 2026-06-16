@@ -146,7 +146,7 @@ func systemVersionUpgrade(c *cli.Context) error {
 		err := huh.NewConfirm().
 			Title("Upgrade ecosystem prepared successfully! Reboot and apply upgrades now?").
 			Affirmative("Reboot and Upgrade").
-			Negative("Reboot Later").
+			Negative("Restart Later").
 			Value(&rebootNow).
 			Run()
 		if err != nil {
