@@ -80,7 +80,7 @@ func systemVersionUpgrade(c *cli.Context) error {
 	// Hook handling for the --check dry-run flag execution
 	if c.Bool("check") {
 		if currentVer == targetVer {
-			fmt.Printf("Your system is completely up-to-date on Ultramarine %s.\n", currentVer)
+			fmt.Printf("Your system is already up to date! Running Ultramarine %s.\n", currentVer)
 		} else {
 			fmt.Printf("A major system upgrade is available! Version %s -> %s\n", currentVer, targetVer)
 		}
@@ -144,9 +144,9 @@ func systemVersionUpgrade(c *cli.Context) error {
 	} else {
 		fmt.Println()
 		err := huh.NewConfirm().
-			Title("Upgrade ecosystem prepared successfully! Reboot and apply upgrades now?").
-			Affirmative("Reboot and Upgrade").
-			Negative("Reboot Later").
+			Title("All Done! Ready to Restart?").
+			Affirmative("Restart and Upgrade").
+			Negative("Restart Later").
 			Value(&rebootNow).
 			Run()
 		if err != nil {
