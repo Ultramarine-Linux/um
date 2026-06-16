@@ -42,7 +42,7 @@ func runCli() error {
 					},
 					&cli.BoolFlag{
 						Name:  "check",
-						Usage: "Check if a newer system version is available without executing updates",
+						Usage: "Check if a newer version is available without upgrading",
 					},
 				},
 			},
