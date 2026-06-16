@@ -31,7 +31,7 @@ func runCli() error {
 			},
 			{
 				Name:        "system-version-upgrade",
-				Usage:       "Upgrade Ultramarine Linux to the next major release",
+				Usage:       "Upgrade your system to the next major release",
 				Description: "Wraps DNF system upgrade logic to transition securely to a new release version.",
 				Action:      systemVersionUpgrade,
 				Flags: []cli.Flag{
