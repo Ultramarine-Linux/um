@@ -155,28 +155,28 @@ func systemVersionUpgrade(c *cli.Context) error {
 	}
 
 	if rebootNow {
-        fmt.Println("\n[*] Activating system-upgrade trigger and rebooting system...")
-        
-        // 1. Try the polite DNF system-upgrade reboot sequence first
-        if err := runCommand("dnf", "system-upgrade", "reboot"); err != nil {
-            fmt.Printf("\n[!] Polite reboot blocked by inhibitor locks (%v). Forcing bypass...\n", err)
-            
-            // 2. Fallback Override: Tell systemctl to force the reboot past the locks
-            forceReboot := exec.Command("systemctl", "reboot", "--force")
-            forceReboot.Stdout = os.Stdout
-            forceReboot.Stderr = os.Stderr
-            
-            if err := forceReboot.Run(); err != nil {
-                // 3. Ultimate Fallback: Direct hardware reset via standard reboot flags
-                fmt.Println("[!] Forceful systemctl failed. Triggering hardware reset...")
-                hardReset := exec.Command("reboot", "-f")
-                _ = hardReset.Run()
-                
-                return cli.Exit("Failed to automatically cycle the machine power.", 1)
-            }
-        }
+		fmt.Println("\n[*] Activating system-upgrade trigger and rebooting system...")
+
+		// 1. Try the polite DNF system-upgrade reboot sequence first
+		if err := runCommand("dnf", "system-upgrade", "reboot"); err != nil {
+			fmt.Printf("\n[!] Polite reboot blocked by inhibitor locks (%v). Forcing bypass...\n", err)
+
+			// 2. Fallback Override: Tell systemctl to force the reboot past the locks
+			forceReboot := exec.Command("systemctl", "reboot", "--force")
+			forceReboot.Stdout = os.Stdout
+			forceReboot.Stderr = os.Stderr
+
+			if err := forceReboot.Run(); err != nil {
+				// 3. Ultimate Fallback: Direct hardware reset via standard reboot flags
+				fmt.Println("[!] Forceful systemctl failed. Triggering hardware reset...")
+				hardReset := exec.Command("reboot", "-f")
+				_ = hardReset.Run()
+
+				return cli.Exit("Failed to automatically cycle the machine power.", 1)
+			}
+		}
 	} else {
-		fmt.Println("\nUpgrade path staged successfully! To run the final deployment cycle later at any time, execute:")
+		fmt.Println("\nUpgrade path staged successfully! To run the final deployment, execute: (expores in 12hrs or after reboot)")
 		fmt.Println("sudo dnf system-upgrade reboot")
 	}
 

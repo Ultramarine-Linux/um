@@ -30,15 +30,15 @@ func runCli() error {
 				},
 			},
 			{
-				Name:        "system-version-upgrade",
-				Usage:       "Upgrade your system to the next major release",
+				Name:	"system-version-upgrade",
+				Usage:	"Upgrade your system to the next major release",
 				Description: "Wraps DNF system upgrade logic to transition securely to a new release version.",
-				Action:      systemVersionUpgrade,
+				Action:	systemVersionUpgrade,
 				Flags: []cli.Flag{
 					&cli.BoolFlag{
-						Name:    "yes",
+						Name:	"yes",
 						Aliases: []string{"y"},
-						Usage:   "Automatically accept the upgrade without prompts, same behavior as dnf's --assumeyes",
+						Usage:	"Automatically accept the upgrade without prompts, same behavior as dnf's --assumeyes",
 					},
 					&cli.BoolFlag{
 						Name:  "check",
