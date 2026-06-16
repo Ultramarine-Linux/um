@@ -38,7 +38,7 @@ func runCli() error {
 					&cli.BoolFlag{
 						Name:    "yes",
 						Aliases: []string{"y"},
-						Usage:   "Automatically confirm and accept the upgrade path without interactive prompts",
+						Usage:   "Automatically accept the upgrade without prompts, same behavior as dnf's --assumeyes",
 					},
 					&cli.BoolFlag{
 						Name:  "check",
