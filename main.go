@@ -30,6 +30,23 @@ func runCli() error {
 				},
 			},
 			{
+				Name:	"system-version-upgrade",
+				Usage:	"Upgrade your system to the next major release",
+				Description: "Wraps DNF system upgrade logic to transition securely to a new release version.",
+				Action:	systemVersionUpgrade,
+				Flags: []cli.Flag{
+					&cli.BoolFlag{
+						Name:	"yes",
+						Aliases: []string{"y"},
+						Usage:	"Automatically accept the upgrade without prompts, same behavior as dnf's --assumeyes",
+					},
+					&cli.BoolFlag{
+						Name:  "check",
+						Usage: "Check if a newer version is available without upgrading",
+					},
+				},
+			},
+			{
 				Name:   "tweaks",
 				Usage:  "Manage Ultramarine tweaks, a set of optional system patches and configurations",
 				Action: listTweaks,
@@ -79,21 +96,20 @@ func runCli() error {
 					},
 				},
 			},
-
 			// {
-			// 	Name:   "experiments",
-			// 	Usage:  "manage Ultramarine Linux experiments, a preview of features to come",
-			// 	Action: listExperiments,
-			// 	Subcommands: []*cli.Command{
-			// 		{
-			// 			Name:   "enable",
-			// 			Action: enableExperiment,
-			// 		},
-			// 		{
-			// 			Name:   "disable",
-			// 			Action: disableExperiment,
-			// 		},
-			// 	},
+			//  Name:   "experiments",
+			//  Usage:  "manage Ultramarine Linux experiments, a preview of features to come",
+			//  Action: listExperiments,
+			//  Subcommands: []*cli.Command{
+			//      {
+			//          Name:   "enable",
+			//          Action: enableExperiment,
+			//      },
+			//      {
+			//          Name:   "disable",
+			//          Action: disableExperiment,
+			//      },
+			//  },
 			// },
 		},
 	}
