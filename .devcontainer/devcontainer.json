@@ -1,8 +1,17 @@
 {
   "name": "umcli",
-  "build": {
-    "dockerfile": "Dockerfile"
+  "image": "ghcr.io/ultramarine-linux/ultramarine:43",
+  
+  // Use native Dev Container Features instead of a custom Dockerfile
+  "features": {
+    "ghcr.io/devcontainers/features/common-utils:1": {
+      "installZsh": false,
+      "configureZshAsDefaultShell": false,
+      "installOhMyZsh": false,
+      "upgradePackages": false
+    }
   },
+
   "onCreateCommand": "sudo dnf install -y golang ansible flatpak flatpak-devel rpm-devel ansible-collection-ansible-posix",
   "forwardPorts": [],
   "customizations": {
