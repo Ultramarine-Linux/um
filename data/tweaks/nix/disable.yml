@@ -1,0 +1,86 @@
+---
+# ansible playbook to uninstall Nix
+#
+# btrfs root  -> tear down the dedicated /nix subvolume (+ fstab entry)
+# anything else -> let the Determinate uninstaller handle /nix on root
+
+- name: Execute the Determinate Systems Nix uninstaller
+  hosts: localhost
+  connection: local
+  become: true
+  gather_facts: true
+  tasks:
+      - name: Get filesystem type of the root mount
+        ansible.builtin.command:
+          cmd: findmnt -no FSTYPE --target /
+        register: root_fstype
+        changed_when: false
+
+      - name: Ensure path in /tmp for storing installer
+        ansible.builtin.file:
+            path: /tmp/nix-installer-tweak/
+            state: directory
+            owner: root
+            group: root
+
+      - name: Get Determinate Systems Nix installer
+        ansible.builtin.get_url:
+            dest: /tmp/nix-installer-tweak/nix-installer.sh
+            url: https://install.determinate.systems/nix
+            mode: "0755"
+
+      # The uninstaller reads /nix/receipt.json to know what to tear down; with
+      # no receipt (Nix not installed, or already removed) it errors out, so skip
+      # it when the receipt is gone. The btrfs teardown below is idempotent on
+      # its own and still cleans up a leftover subvol/fstab entry either way.
+      - name: Check whether Nix is installed
+        ansible.builtin.stat:
+            path: /nix/receipt.json
+        register: nix_receipt
+
+      # Run the uninstaller while /nix is still mounted and populated --
+      # it reads /nix/receipt.json to know what to tear down.
+      - name: Execute Uninstaller
+        ansible.builtin.shell:
+            cmd: /tmp/nix-installer-tweak/nix-installer.sh uninstall --no-confirm
+        when: nix_receipt.stat.exists
+
+      # Everything in here is btrfs-only. On other filesystems the uninstaller
+      # has already dealt with /nix on root, so we skip straight past this.
+      - name: Tear down the dedicated /nix btrfs subvolume
+        when: root_fstype.stdout == 'btrfs'
+        block:
+            - name: Get the btrfs filesystem UUID
+              ansible.builtin.shell:
+                cmd: |
+                  set -euo pipefail
+                  btrfs filesystem show / | awk -F'uuid: ' '/uuid:/ {print $2; exit}'
+              register: btrfs_uuid
+              changed_when: false
+
+            # state: absent removes the fstab entry and unmounts /nix by path.
+            # Unlike state: mounted, it won't get confused about subvols and
+            # try to unmount root. Do this BEFORE deleting the subvolume so the
+            # subvol isn't busy when btrfs_subvolume tries to remove it.
+            - name: Unmount /nix and remove it from /etc/fstab
+              ansible.posix.mount:
+                  path: /nix
+                  state: absent
+
+            - name: Remove Nix btrfs subvolume
+              community.general.btrfs_subvolume:
+                  name: /nix
+                  filesystem_uuid: "{{ btrfs_uuid.stdout }}"
+                  state: absent
+
+      # Empty mountpoint dir on btrfs, or whatever the uninstaller left behind
+      # elsewhere. Safe either way once Nix itself is gone.
+      - name: Delete /nix
+        ansible.builtin.file:
+            path: /nix
+            state: absent
+
+      - name: Cleanup
+        ansible.builtin.file:
+            path: /tmp/nix-installer-tweak
+            state: absent

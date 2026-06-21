@@ -1,0 +1,104 @@
+---
+# ansible playbook to install Nix
+#
+# btrfs root  -> dedicated, compressed /nix subvolume (+ fstab entry)
+# anything else -> let the Determinate installer create /nix on root directly
+
+- name: Execute the Determinate Systems Nix installer
+  hosts: localhost
+  connection: local
+  become: true
+  gather_facts: true
+  tasks:
+      - name: Get filesystem type of the root mount
+        ansible.builtin.command:
+          cmd: findmnt -no FSTYPE --target /
+        register: root_fstype
+        changed_when: false
+
+      # Everything in here is btrfs-only. On other filesystems we skip
+      # straight to the installer, which will make /nix on root itself.
+      - name: Set up a dedicated /nix btrfs subvolume
+        when: root_fstype.stdout == 'btrfs'
+        block:
+            - name: Get the btrfs filesystem UUID
+              ansible.builtin.shell:
+                cmd: |
+                  set -euo pipefail
+                  btrfs filesystem show / | awk -F'uuid: ' '/uuid:/ {print $2; exit}'
+              register: btrfs_uuid
+              changed_when: false
+
+            - name: Create Nix btrfs subvolume
+              community.general.btrfs_subvolume:
+                  name: /nix
+                  filesystem_uuid: "{{ btrfs_uuid.stdout }}"
+                  automount: true
+
+            - name: Ensure /nix exists for subvol mount path
+              ansible.builtin.file:
+                  path: /nix
+                  state: directory
+                  owner: root
+                  group: root
+
+            # mountpoint -q returns 0 only when /nix is already a mountpoint;
+            # anything else (incl. exists-but-unmounted) means we still need to
+            # mount. Guards against a re-run failing with "already mounted".
+            - name: Check whether /nix is already mounted
+              ansible.builtin.command:
+                cmd: mountpoint -q /nix
+              register: nix_mountpoint
+              changed_when: false
+              failed_when: false
+
+            # We mount ephemerally first to make sure we fail if this doesn't work
+            # instead of cursing /etc/fstab to a failed state
+            - name: Mount /nix
+              ansible.builtin.shell:
+                cmd: mount -o "subvol=nix,noatime,compress=zstd:7" UUID={{ btrfs_uuid.stdout }} /nix
+              when: nix_mountpoint.rc != 0
+
+            # In a just world, state: mounted in the below task would do the above task.
+            # Our world is not just. Our world is not kind. ansible.posix.mount
+            # does not have any idea what a subvol is and will try (and fail)
+            # to unmount root.
+            - name: Add Nix subvolume to /etc/fstab
+              ansible.posix.mount:
+                  src: "UUID={{ btrfs_uuid.stdout }}"
+                  path: /nix
+                  fstype: btrfs
+                  opts: subvol=nix,noatime,compress=zstd:7
+                  state: present
+
+      - name: Ensure path in /tmp for storing installer
+        ansible.builtin.file:
+            path: /tmp/nix-installer-tweak/
+            state: directory
+            owner: root
+            group: root
+
+      - name: Get Determinate Systems Nix installer
+        ansible.builtin.get_url:
+            # explicit filename: a directory dest would land this as
+            # /tmp/nix-installer-tweak/nix and break the execute task below
+            dest: /tmp/nix-installer-tweak/nix-installer.sh
+            url: https://install.determinate.systems/nix
+            mode: "0755"
+
+      # The Determinate installer writes /nix/receipt.json on success and bails
+      # if run again over an existing install. Skip it if that receipt is there.
+      - name: Check whether Nix is already installed
+        ansible.builtin.stat:
+            path: /nix/receipt.json
+        register: nix_receipt
+
+      - name: Execute Installer
+        ansible.builtin.shell:
+            cmd: /tmp/nix-installer-tweak/nix-installer.sh install --no-confirm
+        when: not nix_receipt.stat.exists
+
+      - name: Cleanup
+        ansible.builtin.file:
+          name: /tmp/nix-installer-tweak
+          state: absent
