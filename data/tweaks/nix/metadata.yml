@@ -7,5 +7,5 @@ warning: |-
     Nix Installer silently. Stability is alpha as it does mess with your root
     btrfs (it creates a subvol with higher compression, thanks to Nix's large
     storage requirements). Nix allows for ephemeral shells as well as 
-    reproducable development and execution environments without the need for 
+    reproducible development and execution environments without the need for 
     a container runtime or virtualization.
