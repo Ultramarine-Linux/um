@@ -1,0 +1,9 @@
+FROM {{ .BaseImage }}
+
+# Copy environment files into the image for reproducibility
+RUN mkdir -p /var/um/env
+COPY . /var/um/env
+
+# Insert your changes here, the following RUN directive commits changes from environment.toml
+RUN --mount=type=cache,target=/var/cache \
+    um env apply-changes

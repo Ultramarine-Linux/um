@@ -12,10 +12,11 @@ require (
 	github.com/mackerelio/go-osstat v0.2.5
 	github.com/samber/lo v1.49.1
 	github.com/urfave/cli/v2 v2.27.6
-	go.yaml.in/yaml/v4 v4.0.0-rc.2
+	go.yaml.in/yaml/v4 v4.0.0-rc.4
 )
 
 require (
+	github.com/BurntSushi/toml v1.6.0 // indirect
 	github.com/charmbracelet/colorprofile v0.3.0 // indirect
 	github.com/charmbracelet/x/ansi v0.8.0 // indirect
 	github.com/charmbracelet/x/cellbuf v0.0.13 // indirect
