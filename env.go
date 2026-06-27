@@ -102,7 +102,7 @@ func envInit(c *cli.Context) error {
 		return err
 	}
 
-	fmt.Println("Initial derivation built successfully, switching to um managed image...")
+	fmt.Println("Initial derivation built successfully, switching to umcli managed image...")
 
 	if err := env.EnvBootcSwitch(); err != nil {
 		return err
