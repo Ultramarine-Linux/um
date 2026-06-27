@@ -31,6 +31,21 @@
               changed_when: false
               failed_when: false
 
+            # ultramarine bootc comes with a nix.mount unit pre-configured, and we use it to avoid creating a duplicate subvolume
+            - name: Check whether nix.mount already exists
+              ansible.builtin.command:
+                cmd: systemctl list-unit-files nix.mount --no-legend --no-pager
+              register: nix_mount_unit
+              changed_when: false
+              failed_when: false
+
+            - name: Start and enable existing nix.mount unit
+              ansible.builtin.systemd_service:
+                  name: nix.mount
+                  state: started
+                  enabled: "{{ true if ' static' not in nix_mount_unit.stdout else omit }}"
+              when: nix_mount_unit.stdout != ''
+
             - name: Get the btrfs filesystem UUID
               ansible.builtin.shell:
                 cmd: |
@@ -38,14 +53,18 @@
                   btrfs filesystem show / | awk -F'uuid: ' '/uuid:/ {print $2; exit}'
               register: btrfs_uuid
               changed_when: false
-              when: nix_mountpoint.rc != 0
+              when:
+                  - nix_mountpoint.rc != 0
+                  - nix_mount_unit.stdout == ''
 
             - name: Create Nix btrfs subvolume
               community.general.btrfs_subvolume:
                   name: /nix
                   filesystem_uuid: "{{ btrfs_uuid.stdout }}"
                   automount: true
-              when: nix_mountpoint.rc != 0
+              when:
+                  - nix_mountpoint.rc != 0
+                  - nix_mount_unit.stdout == ''
 
             - name: Ensure /nix exists for subvol mount path
               ansible.builtin.file:
@@ -53,14 +72,18 @@
                   state: directory
                   owner: root
                   group: root
-              when: nix_mountpoint.rc != 0
+              when:
+                  - nix_mountpoint.rc != 0
+                  - nix_mount_unit.stdout == ''
 
             # We mount ephemerally first to make sure we fail if this doesn't work
             # instead of cursing /etc/fstab to a failed state
             - name: Mount /nix
               ansible.builtin.shell:
                 cmd: mount -o "subvol=nix,noatime,compress=zstd:7" UUID={{ btrfs_uuid.stdout }} /nix
-              when: nix_mountpoint.rc != 0
+              when:
+                  - nix_mountpoint.rc != 0
+                  - nix_mount_unit.stdout == ''
 
             # In a just world, state: mounted in the below task would do the above task.
             # Our world is not just. Our world is not kind. ansible.posix.mount
@@ -73,7 +96,9 @@
                   fstype: btrfs
                   opts: subvol=nix,noatime,compress=zstd:7
                   state: present
-              when: nix_mountpoint.rc != 0
+              when:
+                  - nix_mountpoint.rc != 0
+                  - nix_mount_unit.stdout == ''
 
       - name: Ensure path in /tmp for storing installer
         ansible.builtin.file:
