@@ -21,6 +21,16 @@
       - name: Set up a dedicated /nix btrfs subvolume
         when: root_fstype.stdout == 'btrfs'
         block:
+            # mountpoint -q returns 0 only when /nix is already a mountpoint;
+            # anything else (incl. exists-but-unmounted) means we still need to
+            # create and mount the subvolume.
+            - name: Check whether /nix is already mounted
+              ansible.builtin.command:
+                cmd: mountpoint -q /nix
+              register: nix_mountpoint
+              changed_when: false
+              failed_when: false
+
             - name: Get the btrfs filesystem UUID
               ansible.builtin.shell:
                 cmd: |
@@ -28,12 +38,14 @@
                   btrfs filesystem show / | awk -F'uuid: ' '/uuid:/ {print $2; exit}'
               register: btrfs_uuid
               changed_when: false
+              when: nix_mountpoint.rc != 0
 
             - name: Create Nix btrfs subvolume
               community.general.btrfs_subvolume:
                   name: /nix
                   filesystem_uuid: "{{ btrfs_uuid.stdout }}"
                   automount: true
+              when: nix_mountpoint.rc != 0
 
             - name: Ensure /nix exists for subvol mount path
               ansible.builtin.file:
@@ -41,16 +53,7 @@
                   state: directory
                   owner: root
                   group: root
-
-            # mountpoint -q returns 0 only when /nix is already a mountpoint;
-            # anything else (incl. exists-but-unmounted) means we still need to
-            # mount. Guards against a re-run failing with "already mounted".
-            - name: Check whether /nix is already mounted
-              ansible.builtin.command:
-                cmd: mountpoint -q /nix
-              register: nix_mountpoint
-              changed_when: false
-              failed_when: false
+              when: nix_mountpoint.rc != 0
 
             # We mount ephemerally first to make sure we fail if this doesn't work
             # instead of cursing /etc/fstab to a failed state
@@ -70,6 +73,7 @@
                   fstype: btrfs
                   opts: subvol=nix,noatime,compress=zstd:7
                   state: present
+              when: nix_mountpoint.rc != 0
 
       - name: Ensure path in /tmp for storing installer
         ansible.builtin.file:
