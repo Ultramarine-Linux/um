@@ -43,15 +43,35 @@ func runCli() error {
 				},
 			},
 			{
-				Name:	"system-version-upgrade",
-				Usage:	"Upgrade your system to the next major release",
+				Name:   "upgrade",
+				Usage:  "Upgrade the system's RPM and Flatpak packages",
+				Action: upgradeApply,
+				Flags:  []cli.Flag{yesFlag},
+				Subcommands: []*cli.Command{
+					{
+						Name:   "list",
+						Usage:  "List available package updates",
+						Action: upgradeList,
+						Flags:  []cli.Flag{&cli.BoolFlag{Name: "json", Usage: "Output structured update data as JSON"}},
+					},
+					{
+						Name:   "apply",
+						Usage:  "Apply available package updates",
+						Action: upgradeApply,
+						Flags:  []cli.Flag{yesFlag},
+					},
+				},
+			},
+			{
+				Name:        "system-version-upgrade",
+				Usage:       "Upgrade your system to the next major release",
 				Description: "Wraps DNF system upgrade logic to transition securely to a new release version.",
-				Action:	systemVersionUpgrade,
+				Action:      systemVersionUpgrade,
 				Flags: []cli.Flag{
 					&cli.BoolFlag{
-						Name:	"yes",
+						Name:    "yes",
 						Aliases: []string{"y"},
-						Usage:	"Automatically accept the upgrade without prompts, same behavior as dnf's --assumeyes",
+						Usage:   "Automatically accept the upgrade without prompts, same behavior as dnf's --assumeyes",
 					},
 					&cli.BoolFlag{
 						Name:  "check",
@@ -119,17 +139,17 @@ func runCli() error {
 						},
 					},
 					{
-						Name:   "build",
-						Usage:  "Build the local derivation from a Containerfile",
+						Name:    "build",
+						Usage:   "Build the local derivation from a Containerfile",
 						Aliases: []string{"b"},
-						Action: envBuild,
+						Action:  envBuild,
 					},
 					{
 						Name:     "add",
 						Usage:    "Add a package to the environment",
 						Action:   envAddPackage,
 						Category: envPMHelperCategory,
-						Aliases: []string{"install", "i", "a", "in"},
+						Aliases:  []string{"install", "i", "a", "in"},
 						Flags: []cli.Flag{
 							envApplyLiveFlag,
 						},
@@ -138,7 +158,7 @@ func runCli() error {
 						Name:     "remove",
 						Usage:    "Remove a package from the environment",
 						Action:   envRemovePackage,
-						Aliases: []string{"uninstall", "rm", "r"},
+						Aliases:  []string{"uninstall", "rm", "r"},
 						Category: envPMHelperCategory,
 						Flags: []cli.Flag{
 							envApplyLiveFlag,
