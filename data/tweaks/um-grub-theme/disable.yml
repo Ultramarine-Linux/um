@@ -1,0 +1,21 @@
+---
+- name: Disable Ultramarine GRUB theme
+  hosts: localhost
+  connection: local
+  become: true
+  tasks:
+      - name: Remove GRUB theme config
+        ansible.builtin.lineinfile:
+            path: /etc/default/grub
+            regexp: '^#?GRUB_THEME="/boot/grub2/themes/ultramarine/theme.txt"'
+            state: absent
+
+      - name: Remove graphical terminal output config
+        ansible.builtin.lineinfile:
+            path: /etc/default/grub
+            regexp: '^#?GRUB_TERMINAL_OUTPUT="gfxterm"'
+            state: absent
+
+      - name: Regenerate GRUB config
+        ansible.builtin.command:
+            cmd: grub2-mkconfig -o /boot/grub2/grub.cfg
