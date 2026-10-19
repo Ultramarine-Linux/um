@@ -10,6 +10,15 @@ rpm
 ansible
 ```
 
+### Tweaks
+
+Ultramarine Tweak playbooks require the following packages:
+
+```
+ansible-collection-ansible-posix
+grub2-distro-theme-nightly-ultramarine
+```
+
 ### 🛠️ Build Dependencies
 
 ```
@@ -18,12 +27,6 @@ flatpak-devel
 rpm-devel
 ```
 
-## Tweaks
-
-Ultramarine Tweak playbooks require the following Ansible collections as RPM packages:
-
-- ansible-collection-ansible-posix
-- 
 ## Hacking
 ### Dev Containers
 
@@ -52,5 +55,6 @@ flatpak
 flatpak-devel
 rpm-devel
 ansible-collection-ansible-posix
+grub2-distro-theme-nightly-ultramarine
 ```
 2. Use the Go toolchain
