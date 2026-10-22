@@ -8,13 +8,13 @@ import (
 	"io"
 	"net/http"
 	"os"
-	"os/exec"
 	"sort"
 	"strconv"
 	"strings"
 	"time"
 
 	"github.com/Ultramarine-Linux/um/pkg/util"
+	"github.com/Ultramarine-Linux/um/upgrade"
 	"github.com/acobaugh/osrelease"
 	"github.com/charmbracelet/huh"
 	"github.com/urfave/cli/v2"
@@ -38,6 +38,48 @@ type collection struct {
 
 var UpgradeEnvars = []string{
 	"UM_DATA",
+}
+
+func upgradeList(c *cli.Context) error {
+	updates := upgrade.List()
+	if c.Bool("json") {
+		if err := json.NewEncoder(os.Stdout).Encode(updates); err != nil {
+			return err
+		}
+	} else {
+		for _, update := range updates.Updates {
+			fmt.Printf("%s: %s -> %s (%s)\n", update.Name, update.OldVersion, update.NewVersion, update.Source)
+		}
+		for _, e := range updates.Errors {
+			fmt.Fprintf(os.Stderr, "warning: failed to list updates from %s\n", e)
+		}
+	}
+	// Only fail when nothing could be queried at all.
+	if len(updates.Errors) > 0 && len(updates.Updates) == 0 {
+		return cli.Exit("failed to list updates", 1)
+	}
+	return nil
+}
+
+func upgradeApply(c *cli.Context) error {
+	assumeYes := c.Bool("yes")
+
+	// User-level updates must run as the invoking user, before escalating.
+	if os.Getuid() != 0 {
+		if err := upgrade.ApplyUser(assumeYes); err != nil {
+			return cli.Exit(err.Error(), 1)
+		}
+	}
+
+	util.SudoIfNeeded(UpgradeEnvars)
+	updated, err := upgrade.ApplySystem(assumeYes)
+	if err != nil {
+		return cli.Exit(err.Error(), 1)
+	}
+	if !updated {
+		return cli.Exit("no supported package manager found", 1)
+	}
+	return nil
 }
 
 // getCurrentReleaseVersion reads /etc/os-release to safely discover what version the user is running
@@ -133,15 +175,6 @@ func parseMajorVersionInt(s string) (int, bool) {
 	return n, true
 }
 
-// runCommand routes standard I/O so DNF download progress animations are visible to the user
-func runCommand(name string, args ...string) error {
-	cmd := exec.Command(name, args...)
-	cmd.Stdout = os.Stdout
-	cmd.Stderr = os.Stderr
-	cmd.Stdin = os.Stdin
-	return cmd.Run()
-}
-
 func systemVersionUpgrade(c *cli.Context) error {
 	// Elevate to root execution via your utility helper block early on
 	util.SudoIfNeeded(UpgradeEnvars)
@@ -198,7 +231,7 @@ func systemVersionUpgrade(c *cli.Context) error {
 	}
 
 	fmt.Println("\n[*] Syncing and fully updating packages on your current release version...")
-	if err := runCommand("dnf", "upgrade", "--refresh", "-y"); err != nil {
+	if err := util.RunCommand("dnf", "upgrade", "--refresh", "-y"); err != nil {
 		return cli.Exit(fmt.Sprintf("DNF failed during pre-upgrade packages synchronization: %v", err), 1)
 	}
 
@@ -207,7 +240,7 @@ func systemVersionUpgrade(c *cli.Context) error {
 	if c.Bool("allowerasing") {
 		downloadArgs = append(downloadArgs, "--allowerasing")
 	}
-	if err := runCommand("dnf", downloadArgs...); err != nil {
+	if err := util.RunCommand("dnf", downloadArgs...); err != nil {
 		return cli.Exit(fmt.Sprintf("DNF execution pipeline failed to pull systemic upgrade branches: %v", err), 1)
 	}
 
@@ -230,7 +263,7 @@ func systemVersionUpgrade(c *cli.Context) error {
 	if rebootNow {
 		fmt.Println("\n[*] Activating system-upgrade trigger and rebooting system...")
 
-		if err := runCommand("dnf", "system-upgrade", "reboot"); err != nil {
+		if err := util.RunCommand("dnf", "system-upgrade", "reboot"); err != nil {
 			return cli.Exit("Failed to reboot the machine for system upgrade. You may try running `sudo dnf system-upgrade reboot` manually.", 1)
 		}
 	} else {
