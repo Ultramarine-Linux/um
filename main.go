@@ -1,6 +1,7 @@
 package main
 
 import (
+	"fmt"
 	"log"
 	"os"
 
@@ -25,6 +26,21 @@ var tweaksJSONFlag = &cli.BoolFlag{
 	Usage: "Output tweaks, including their enabled state, as JSON",
 }
 
+// noArgs wraps an action so that unexpected positional arguments (e.g. a
+// mistyped subcommand like `um upgrade lst`) print help instead of running it.
+func noArgs(action cli.ActionFunc) cli.ActionFunc {
+	return func(c *cli.Context) error {
+		if c.Args().Present() {
+			fmt.Fprintf(os.Stderr, "Unknown command or argument %q\n\n", c.Args().First())
+			if err := cli.ShowSubcommandHelp(c); err != nil {
+				return err
+			}
+			return cli.Exit("", 1)
+		}
+		return action(c)
+	}
+}
+
 // TODO: pls refactor all of this mess
 
 func runCli() error {
@@ -44,6 +60,26 @@ func runCli() error {
 					&cli.BoolFlag{
 						Name:  "json",
 						Usage: "Output system status in JSON",
+					},
+				},
+			},
+			{
+				Name:   "upgrade",
+				Usage:  "Upgrade the system's RPM and Flatpak packages",
+				Action: noArgs(upgradeApply),
+				Flags:  []cli.Flag{yesFlag},
+				Subcommands: []*cli.Command{
+					{
+						Name:   "list",
+						Usage:  "List available package updates",
+						Action: noArgs(upgradeList),
+						Flags:  []cli.Flag{&cli.BoolFlag{Name: "json", Usage: "Output structured update data as JSON"}},
+					},
+					{
+						Name:   "apply",
+						Usage:  "Apply available package updates",
+						Action: noArgs(upgradeApply),
+						Flags:  []cli.Flag{yesFlag},
 					},
 				},
 			},
