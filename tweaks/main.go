@@ -1,8 +1,12 @@
 package tweaks
 
 import (
+	"errors"
 	"fmt"
 	"os"
+	"os/exec"
+	"path/filepath"
+	"sort"
 
 	"github.com/Ultramarine-Linux/um/pkg/util"
 	"go.yaml.in/yaml/v4"
@@ -159,46 +163,91 @@ func List() (map[string]Tweak, error) {
 	return tweaks, nil
 }
 
-func (t Tweak) Enable() error {
-	// check if tweak type is oneshot or toggle
+// StatePath returns the directory where tweak state markers are stored.
+// Markers are world-readable so unprivileged frontends (e.g. the Plasma
+// Tweaks KCM) can show which tweaks are enabled without escalating.
+func StatePath() string {
+	return util.GetStateDir() + "/tweaks"
+}
 
+func (t Tweak) ID() string {
+	return filepath.Base(t.Path)
+}
+
+func (t Tweak) stateFile() string {
+	return filepath.Join(StatePath(), t.ID()+".enabled")
+}
+
+// Enabled reports whether a toggle tweak is enabled, or whether a oneshot
+// tweak has been applied. Script tweaks never have state.
+func (t Tweak) Enabled() bool {
+	if t.TweakType == TweakTypeScript {
+		return false
+	}
+	_, err := os.Stat(t.stateFile())
+	return err == nil
+}
+
+func (t Tweak) setEnabled(enabled bool) error {
+	if !enabled {
+		if err := os.Remove(t.stateFile()); err != nil && !errors.Is(err, os.ErrNotExist) {
+			return err
+		}
+		return nil
+	}
+	if err := os.MkdirAll(StatePath(), 0755); err != nil {
+		return err
+	}
+	if err := os.WriteFile(t.stateFile(), nil, 0644); err != nil {
+		return err
+	}
+	// Modes passed above are filtered by the umask (which sudo may carry
+	// over from the user), so set them explicitly: unprivileged frontends
+	// must be able to read the state.
+	if err := os.Chmod(StatePath(), 0755); err != nil {
+		return err
+	}
+	return os.Chmod(t.stateFile(), 0644)
+}
+
+func (t Tweak) runPlaybook(playbook string) error {
+	// run ansible-playbook <playbook> --connection=local from the tweak directory
+	cmd := exec.Command("/usr/bin/ansible-playbook", "--connection=local", filepath.Join(t.Path, playbook))
+	cmd.Dir = t.Path
+	cmd.Stdin = os.Stdin
+	cmd.Stdout = os.Stdout
+	cmd.Stderr = os.Stderr
+	return cmd.Run()
+}
+
+func (t Tweak) Enable() error {
 	switch t.TweakType {
 	case TweakTypeOneshot:
 	case TweakTypeToggle:
-
 	default:
 		return TweakTypeNotSupportedError(t.TweakType)
 	}
 
-	// popd in path
-
-	os.Chdir(t.Path)
-	// run ansible-playbook enable.yml -i localhost, --connection=local
-	cmd := []string{"--connection=local", t.Path + "/enable.yml"}
-
-	if err := unix.Exec("/usr/bin/ansible-playbook", append([]string{"ansible-playbook"}, cmd...), os.Environ()); err != nil {
+	if err := t.runPlaybook("enable.yml"); err != nil {
 		return err
 	}
-
+	if err := t.setEnabled(true); err != nil {
+		return fmt.Errorf("tweak was applied, but recording its enabled state failed: %w", err)
+	}
 	return nil
 }
 
 func (t Tweak) Disable() error {
-	// check if tweak type is toggle
 	if t.TweakType != TweakTypeToggle {
 		return TweakTypeNotSupportedError(t.TweakType)
 	}
 
-	// popd in path
-
-	os.Chdir(t.Path)
-	// run ansible-playbook disable.yml -i localhost, --connection=local
-	cmd := []string{"--connection=local", t.Path + "/disable.yml"}
-
-	if err := unix.Exec("/usr/bin/ansible-playbook", append([]string{"ansible-playbook"}, cmd...), os.Environ()); err != nil {
+	if err := t.runPlaybook("disable.yml"); err != nil {
 		return err
 	}
-
+	if err := t.setEnabled(false); err != nil {
+		return fmt.Errorf("tweak was disabled, but recording its state failed: %w", err)
+	}
 	return nil
 }
 
@@ -212,8 +261,39 @@ func (t Tweak) Run() error {
 
 	os.Chdir(t.Path)
 	// run script.sh
-	if err := unix.Exec(t.Path+"/script.sh", []string{}, os.Environ()); err != nil {
+	if err := unix.Exec(t.Path+"/script.sh", []string{t.Path + "/script.sh"}, os.Environ()); err != nil {
 		return err
 	}
 	return nil
+}
+
+// ListEntry is the machine-readable representation of a tweak, used by
+// `um tweaks list --json`.
+type ListEntry struct {
+	ID          string `json:"id"`
+	Description string `json:"description"`
+	Type        string `json:"type"`
+	Stability   string `json:"stability,omitempty"`
+	Warning     string `json:"warning,omitempty"`
+	Enabled     bool   `json:"enabled"`
+}
+
+// SortedEntries returns all tweaks as list entries, sorted by ID.
+func SortedEntries(tweaks map[string]Tweak) []ListEntry {
+	entries := make([]ListEntry, 0, len(tweaks))
+	for id, t := range tweaks {
+		entry := ListEntry{ID: id, Type: t.TweakType.String(), Enabled: t.Enabled()}
+		if t.Description != nil {
+			entry.Description = *t.Description
+		}
+		if t.Stability != nil {
+			entry.Stability = t.Stability.String()
+		}
+		if t.Warning != nil {
+			entry.Warning = *t.Warning
+		}
+		entries = append(entries, entry)
+	}
+	sort.Slice(entries, func(i, j int) bool { return entries[i].ID < entries[j].ID })
+	return entries
 }
