@@ -1,23 +1,23 @@
 package main
 
 import (
-	"fmt"
-	"os"
-	"os/exec"
-	"strings"
 	"context"
 	"encoding/json"
 	"errors"
+	"fmt"
 	"io"
 	"net/http"
+	"os"
+	"os/exec"
 	"sort"
 	"strconv"
+	"strings"
 	"time"
 
 	"github.com/Ultramarine-Linux/um/pkg/util"
+	"github.com/acobaugh/osrelease"
 	"github.com/charmbracelet/huh"
 	"github.com/urfave/cli/v2"
-	"github.com/acobaugh/osrelease"
 )
 
 type collectionsResponse struct {
@@ -46,7 +46,7 @@ func getCurrentReleaseVersion() (string, error) {
 	if err != nil {
 		return "", err
 	}
-  return release["VERSION_ID"], nil
+	return release["VERSION_ID"], nil
 }
 
 // getNextReleaseVersion calculates the next upgrade jump.

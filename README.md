@@ -23,7 +23,7 @@ rpm-devel
 Ultramarine Tweak playbooks require the following Ansible collections as RPM packages:
 
 - ansible-collection-ansible-posix
-- 
+
 ## Hacking
 ### Dev Containers
 
