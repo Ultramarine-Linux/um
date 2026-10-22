@@ -91,6 +91,7 @@ func rpmPackageUpdates() ([]PackageUpdate, error) {
 			OldVersion: installed[u.nameArch], NewVersion: u.version, Icon: "package-x-generic",
 		})
 	}
+	annotateRpmApps(result)
 	annotateRpmSizes(result)
 	return result, nil
 }
