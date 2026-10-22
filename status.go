@@ -227,7 +227,7 @@ func displayJSON() error {
 		return err
 	}
 
-	println(string(jsonBytes))
+	fmt.Println(string(jsonBytes))
 
 	return nil
 }
