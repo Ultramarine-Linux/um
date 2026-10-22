@@ -1,7 +1,9 @@
 package main
 
 import (
+	"encoding/json"
 	"fmt"
+	"os"
 
 	"github.com/Ultramarine-Linux/um/pkg/util"
 	"github.com/Ultramarine-Linux/um/tweaks"
@@ -12,27 +14,37 @@ import (
 var Envars = []string{
 	"UM_TWEAKS_PATH",
 	"UM_DATA",
+	"UM_STATE",
 }
 
 func listTweaks(c *cli.Context) error {
-	util.SudoIfNeeded(Envars)
-	tweaks, err := tweaks.List()
+	// Listing only reads metadata and world-readable state, so no escalation
+	// is needed. This lets GUI frontends query tweaks without a password prompt.
+	tweakList, err := tweaks.List()
 	if err != nil {
 		return err
 	}
 
-	for name, tweak := range tweaks {
-		fmt.Printf("- ID: %s\n", name)
-		if tweak.Description != nil {
-			fmt.Printf("  Description: %s\n", *tweak.Description)
+	entries := tweaks.SortedEntries(tweakList)
+
+	if c.Bool("json") {
+		return json.NewEncoder(os.Stdout).Encode(struct {
+			Tweaks []tweaks.ListEntry `json:"tweaks"`
+		}{entries})
+	}
+
+	for _, tweak := range entries {
+		fmt.Printf("- ID: %s\n", tweak.ID)
+		if tweak.Description != "" {
+			fmt.Printf("  Description: %s\n", tweak.Description)
 		}
-		fmt.Printf("  Type: %s\n", tweak.TweakType)
-		if tweak.Stability != nil {
-			fmt.Printf("  Stability: %s\n", tweak.Stability.String())
+		fmt.Printf("  Type: %s\n", tweak.Type)
+		if tweak.Stability != "" {
+			fmt.Printf("  Stability: %s\n", tweak.Stability)
 		}
-		// if tweak.Warning != nil {
-		// 	fmt.Printf("  Warning: %s\n", *tweak.Warning)
-		// }
+		if tweak.Type != "script" {
+			fmt.Printf("  Enabled: %t\n", tweak.Enabled)
+		}
 		fmt.Println()
 	}
 
