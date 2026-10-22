@@ -18,6 +18,14 @@ flatpak-devel
 rpm-devel
 ```
 
+## Upgrades
+
+`um upgrade` upgrades the system's RPM and Flatpak packages in one operation, similar to topgrade.
+
+`um upgrade list --json` exposes a structured update inventory for desktop integrations such as the Plasma Updates KCM. Each entry includes `name`, `source`, `old_version`, `new_version`, and `icon`, for both RPM and Flatpak updates.
+
+Use `um upgrade apply --yes` explicitly when scripting or integrating the operation. The `--yes` flag is also available on the top-level `um upgrade` command.
+
 ## Tweaks
 
 Ultramarine Tweak playbooks require the following Ansible collections as RPM packages:
