@@ -30,11 +30,17 @@ func ApplyUser(assumeYes bool) error {
 }
 
 // ApplySystem updates system packages, system Flatpaks and Nix itself.
-// Needs root. Reports whether any package manager was found.
-func ApplySystem(assumeYes bool) (bool, error) {
+// Needs root. With offline, RPM updates are downloaded and staged to be
+// installed during the next restart (dnf5 offline transactions) instead of
+// being installed on the running system. Reports whether any package manager
+// was found.
+func ApplySystem(assumeYes, offline bool) (bool, error) {
 	updated := false
 	if _, err := exec.LookPath("dnf"); err == nil {
 		args := []string{"upgrade", "--refresh"}
+		if offline {
+			args = append(args, "--offline")
+		}
 		if assumeYes {
 			args = append(args, "-y")
 		}
