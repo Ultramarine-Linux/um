@@ -198,7 +198,16 @@ func (t Tweak) setEnabled(enabled bool) error {
 	if err := os.MkdirAll(StatePath(), 0755); err != nil {
 		return err
 	}
-	return os.WriteFile(t.stateFile(), nil, 0644)
+	if err := os.WriteFile(t.stateFile(), nil, 0644); err != nil {
+		return err
+	}
+	// Modes passed above are filtered by the umask (which sudo may carry
+	// over from the user), so set them explicitly: unprivileged frontends
+	// must be able to read the state.
+	if err := os.Chmod(StatePath(), 0755); err != nil {
+		return err
+	}
+	return os.Chmod(t.stateFile(), 0644)
 }
 
 func (t Tweak) runPlaybook(playbook string) error {
@@ -222,7 +231,10 @@ func (t Tweak) Enable() error {
 	if err := t.runPlaybook("enable.yml"); err != nil {
 		return err
 	}
-	return t.setEnabled(true)
+	if err := t.setEnabled(true); err != nil {
+		return fmt.Errorf("tweak was applied, but recording its enabled state failed: %w", err)
+	}
+	return nil
 }
 
 func (t Tweak) Disable() error {
@@ -233,7 +245,10 @@ func (t Tweak) Disable() error {
 	if err := t.runPlaybook("disable.yml"); err != nil {
 		return err
 	}
-	return t.setEnabled(false)
+	if err := t.setEnabled(false); err != nil {
+		return fmt.Errorf("tweak was disabled, but recording its state failed: %w", err)
+	}
+	return nil
 }
 
 func (t Tweak) Run() error {
@@ -246,7 +261,7 @@ func (t Tweak) Run() error {
 
 	os.Chdir(t.Path)
 	// run script.sh
-	if err := unix.Exec(t.Path+"/script.sh", []string{}, os.Environ()); err != nil {
+	if err := unix.Exec(t.Path+"/script.sh", []string{t.Path + "/script.sh"}, os.Environ()); err != nil {
 		return err
 	}
 	return nil

@@ -65,12 +65,7 @@ func getNextReleaseVersion(currentVersion string) (string, error) {
 	if err != nil {
 		return "", err
 	}
-	defer func(Body io.ReadCloser) {
-		err := Body.Close()
-		if err != nil {
-
-		}
-	}(resp.Body)
+	defer func() { _ = resp.Body.Close() }()
 
 	if resp.StatusCode < 200 || resp.StatusCode >= 300 {
 		b, _ := io.ReadAll(io.LimitReader(resp.Body, 4096))
@@ -148,6 +143,9 @@ func runCommand(name string, args ...string) error {
 }
 
 type PackageUpdate struct {
+	// ID uniquely identifies the update: "name.arch" for RPMs, the
+	// application ID for Flatpaks.
+	ID         string `json:"id"`
 	Name       string `json:"name"`
 	Source     string `json:"source"`
 	OldVersion string `json:"old_version"`
@@ -157,6 +155,9 @@ type PackageUpdate struct {
 
 type PackageUpdatesResponse struct {
 	Updates []PackageUpdate `json:"updates"`
+	// Errors lists sources that could not be queried. Updates from the
+	// remaining sources are still reported.
+	Errors []string `json:"errors"`
 }
 
 func commandOutput(name string, args ...string) (string, error) {
@@ -181,85 +182,257 @@ func commandOutputWithExitCodes(name string, allowedExitCodes []int, args ...str
 	return strings.TrimSpace(string(output)), nil
 }
 
-func packageUpdates() (PackageUpdatesResponse, error) {
-	response := PackageUpdatesResponse{Updates: []PackageUpdate{}}
+// rpmUpdate is a single pending update parsed from `dnf check-update`.
+type rpmUpdate struct {
+	nameArch, version, repo string
+}
+
+// parseDnfCheckUpdate parses `dnf check-update` output (dnf4 and dnf5).
+// Only the list of upgrades is returned; the obsoletes section, headers and
+// metadata/status lines are ignored.
+func parseDnfCheckUpdate(output string) []rpmUpdate {
+	var updates []rpmUpdate
+	for _, line := range strings.Split(output, "\n") {
+		if strings.HasPrefix(strings.TrimSpace(line), "Obsoleting") {
+			// Everything after this header lists obsoleted packages, not upgrades.
+			break
+		}
+		// Continuation lines (e.g. wrapped or obsoleted entries) are indented.
+		if line == "" || line[0] == ' ' || line[0] == '\t' {
+			continue
+		}
+		fields := strings.Fields(line)
+		if len(fields) != 3 || !strings.Contains(fields[0], ".") || strings.HasSuffix(fields[0], ":") {
+			continue
+		}
+		updates = append(updates, rpmUpdate{nameArch: fields[0], version: fields[1], repo: fields[2]})
+	}
+	return updates
+}
+
+// installedRpmVersions maps "name.arch" to the installed EVR. When several
+// versions are installed (e.g. kernels), the most recently installed wins.
+func installedRpmVersions() map[string]string {
+	output, err := commandOutput("rpm", "-qa", "--qf", "%{NAME}.%{ARCH}\t%{EVR}\t%{INSTALLTIME}\n")
+	if err != nil {
+		return map[string]string{}
+	}
+	return parseRpmInstalled(output)
+}
+
+func parseRpmInstalled(output string) map[string]string {
+	versions := map[string]string{}
+	installTimes := map[string]int64{}
+	for _, line := range strings.Split(output, "\n") {
+		fields := strings.Split(line, "\t")
+		if len(fields) != 3 {
+			continue
+		}
+		installTime, _ := strconv.ParseInt(fields[2], 10, 64)
+		if prev, seen := installTimes[fields[0]]; seen && prev > installTime {
+			continue
+		}
+		versions[fields[0]] = fields[1]
+		installTimes[fields[0]] = installTime
+	}
+	return versions
+}
+
+func rpmPackageName(nameArch string) string {
+	if i := strings.LastIndex(nameArch, "."); i > 0 {
+		return nameArch[:i]
+	}
+	return nameArch
+}
+
+// flatpakUpdate is a single pending update parsed from `flatpak remote-ls --updates`.
+type flatpakUpdate struct {
+	appID, name, version, branch, origin string
+}
+
+func parseFlatpakRemoteLs(output string) []flatpakUpdate {
+	var updates []flatpakUpdate
+	for _, line := range strings.Split(output, "\n") {
+		fields := strings.Split(line, "\t")
+		if len(fields) < 5 || fields[0] == "" || fields[0] == "Application ID" {
+			continue
+		}
+		updates = append(updates, flatpakUpdate{
+			appID: fields[0], name: fields[1], version: fields[2], branch: fields[3], origin: fields[4],
+		})
+	}
+	return updates
+}
+
+// flatpakInstallations are queried separately so updates can be attributed
+// to (and applied in) the right installation.
+var flatpakInstallations = []string{"system", "user"}
+
+// installedFlatpakVersions maps "appID/branch" to the installed version for
+// one installation ("system" or "user").
+func installedFlatpakVersions(installation string) map[string]string {
+	versions := map[string]string{}
+	output, err := commandOutput("flatpak", "list", "--"+installation, "--columns=application,branch,version")
+	if err != nil {
+		return versions
+	}
+	for _, line := range strings.Split(output, "\n") {
+		fields := strings.Split(line, "\t")
+		if len(fields) < 3 || fields[0] == "" {
+			continue
+		}
+		versions[fields[0]+"/"+fields[1]] = fields[2]
+	}
+	return versions
+}
+
+func rpmPackageUpdates() ([]PackageUpdate, error) {
+	// dnf check-update exits with 100 when updates are available. No
+	// --refresh: let dnf decide when metadata has expired, otherwise every
+	// (unprivileged, separately cached) listing re-downloads all metadata.
+	output, err := commandOutputWithExitCodes("dnf", []int{100}, "check-update")
+	if err != nil {
+		return nil, err
+	}
+	updates := parseDnfCheckUpdate(output)
+	if len(updates) == 0 {
+		return nil, nil
+	}
+	installed := installedRpmVersions()
+	result := make([]PackageUpdate, 0, len(updates))
+	for _, u := range updates {
+		result = append(result, PackageUpdate{
+			ID: u.nameArch, Name: rpmPackageName(u.nameArch), Source: "RPM (" + u.repo + ")",
+			OldVersion: installed[u.nameArch], NewVersion: u.version, Icon: "package-x-generic",
+		})
+	}
+	return result, nil
+}
+
+func flatpakPackageUpdates(installation string) ([]PackageUpdate, error) {
+	output, err := commandOutput("flatpak", "remote-ls", "--"+installation, "--updates",
+		"--columns=application,name,version,branch,origin")
+	if err != nil {
+		return nil, err
+	}
+	updates := parseFlatpakRemoteLs(output)
+	if len(updates) == 0 {
+		return nil, nil
+	}
+	installed := installedFlatpakVersions(installation)
+	result := make([]PackageUpdate, 0, len(updates))
+	for _, u := range updates {
+		result = append(result, flatpakPackageUpdate(u, installation, installed))
+	}
+	return result, nil
+}
+
+func flatpakPackageUpdate(u flatpakUpdate, installation string, installed map[string]string) PackageUpdate {
+	name := u.name
+	if name == "" {
+		name = u.appID
+	}
+	source := "Flatpak"
+	if u.origin != "" {
+		source += " (" + u.origin + ")"
+	}
+	if installation != "system" {
+		source += " [" + installation + "]"
+	}
+	// The same app ID can appear for several branches (e.g. runtime
+	// extensions) and in both installations, so qualify the ID.
+	id := u.appID + "//" + u.branch
+	if installation != "system" {
+		id += "@" + installation
+	}
+	// Flatpak apps export their icon under their application ID.
+	return PackageUpdate{
+		ID: id, Name: name, Source: source,
+		OldVersion: installed[u.appID+"/"+u.branch], NewVersion: u.version, Icon: u.appID,
+	}
+}
+
+// packageUpdates collects updates from every available source. A failing
+// source is recorded in Errors instead of hiding the other sources' updates.
+func packageUpdates() PackageUpdatesResponse {
+	response := PackageUpdatesResponse{Updates: []PackageUpdate{}, Errors: []string{}}
+	collect := func(source string, updates []PackageUpdate, err error) {
+		if err != nil {
+			response.Errors = append(response.Errors, fmt.Sprintf("%s: %v", source, err))
+			return
+		}
+		response.Updates = append(response.Updates, updates...)
+	}
 
 	if _, err := exec.LookPath("dnf"); err == nil {
-		output, err := commandOutputWithExitCodes("dnf", []int{100}, "--refresh", "check-update")
-		if err != nil {
-			return response, err
-		}
-		for _, line := range strings.Split(output, "\n") {
-			fields := strings.Fields(line)
-			if len(fields) < 3 || !strings.Contains(fields[0], ".") || fields[0] == "Package" {
-				continue
-			}
-			oldVersion, _ := commandOutput("rpm", "-q", "--qf", "%{EVR}", fields[0])
-			response.Updates = append(response.Updates, PackageUpdate{
-				Name: fields[0], Source: "RPM (" + fields[2] + ")", OldVersion: oldVersion,
-				NewVersion: fields[1], Icon: "package-x-generic",
-			})
-		}
+		updates, err := rpmPackageUpdates()
+		collect("rpm", updates, err)
 	}
-
 	if _, err := exec.LookPath("flatpak"); err == nil {
-		output, err := commandOutput("flatpak", "remote-ls", "--updates", "--columns=application,name,version,branch,origin")
-		if err != nil {
-			return response, err
-		}
-		for _, line := range strings.Split(output, "\n") {
-			fields := strings.Split(line, "\t")
-			if len(fields) < 3 || fields[0] == "" || fields[0] == "Application" {
-				continue
-			}
-			oldVersion, _ := commandOutput("flatpak", "info", "--show-version", fields[0])
-			icon := fields[0]
-			if metadata, metadataErr := commandOutput("flatpak", "info", "--show-metadata", fields[0]); metadataErr == nil {
-				for _, metadataLine := range strings.Split(metadata, "\\n") {
-					if strings.HasPrefix(metadataLine, "Icon=") && strings.TrimSpace(strings.TrimPrefix(metadataLine, "Icon=")) != "" {
-						icon = strings.TrimSpace(strings.TrimPrefix(metadataLine, "Icon="))
-						break
-					}
-				}
-			}
-			source := "Flatpak"
-			if len(fields) >= 5 && fields[4] != "" {
-				source += " (" + fields[4] + ")"
-			}
-			response.Updates = append(response.Updates, PackageUpdate{
-				Name: fields[1], Source: source, OldVersion: oldVersion,
-				NewVersion: fields[2], Icon: icon,
-			})
+		for _, installation := range flatpakInstallations {
+			updates, err := flatpakPackageUpdates(installation)
+			collect("flatpak "+installation, updates, err)
 		}
 	}
-	return response, nil
+	return response
 }
 
 func upgradeList(c *cli.Context) error {
-	updates, err := packageUpdates()
-	if err != nil {
-		return cli.Exit(fmt.Sprintf("failed to list updates: %v", err), 1)
-	}
+	updates := packageUpdates()
 	if c.Bool("json") {
-		return json.NewEncoder(os.Stdout).Encode(updates)
+		if err := json.NewEncoder(os.Stdout).Encode(updates); err != nil {
+			return err
+		}
+	} else {
+		for _, update := range updates.Updates {
+			fmt.Printf("%s: %s -> %s (%s)\n", update.Name, update.OldVersion, update.NewVersion, update.Source)
+		}
+		for _, e := range updates.Errors {
+			fmt.Fprintf(os.Stderr, "warning: failed to list updates from %s\n", e)
+		}
 	}
-	for _, update := range updates.Updates {
-		fmt.Printf("%s: %s -> %s (%s)\\n", update.Name, update.OldVersion, update.NewVersion, update.Source)
+	// Only fail when nothing could be queried at all.
+	if len(updates.Errors) > 0 && len(updates.Updates) == 0 {
+		return cli.Exit("failed to list updates", 1)
 	}
 	return nil
 }
 
 func upgradeApply(c *cli.Context) error {
+	assumeYes := c.Bool("yes")
+	_, flatpakErr := exec.LookPath("flatpak")
+	hasFlatpak := flatpakErr == nil
+
+	// User-installation Flatpaks must be updated as the invoking user: after
+	// escalating, flatpak would only see root's (empty) user installation.
+	if hasFlatpak && os.Getuid() != 0 {
+		args := []string{"update", "--user"}
+		if assumeYes {
+			args = append(args, "--noninteractive")
+		}
+		if err := runCommand("flatpak", args...); err != nil {
+			return cli.Exit(fmt.Sprintf("Flatpak user update failed: %v", err), 1)
+		}
+	}
+
 	util.SudoIfNeeded(UpgradeEnvars)
 	updated := false
 	if _, err := exec.LookPath("dnf"); err == nil {
-		if err := runCommand("dnf", "upgrade", "--refresh", "-y"); err != nil {
+		args := []string{"upgrade", "--refresh"}
+		if assumeYes {
+			args = append(args, "-y")
+		}
+		if err := runCommand("dnf", args...); err != nil {
 			return cli.Exit(fmt.Sprintf("RPM update failed: %v", err), 1)
 		}
 		updated = true
 	}
-	if _, err := exec.LookPath("flatpak"); err == nil {
-		if err := runCommand("flatpak", "update", "--noninteractive"); err != nil {
+	if hasFlatpak {
+		args := []string{"update", "--system"}
+		if assumeYes {
+			args = append(args, "--noninteractive")
+		}
+		if err := runCommand("flatpak", args...); err != nil {
 			return cli.Exit(fmt.Sprintf("Flatpak update failed: %v", err), 1)
 		}
 		updated = true

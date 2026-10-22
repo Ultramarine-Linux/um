@@ -14,6 +14,7 @@ import (
 var Envars = []string{
 	"UM_TWEAKS_PATH",
 	"UM_DATA",
+	"UM_STATE",
 }
 
 func listTweaks(c *cli.Context) error {

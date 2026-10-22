@@ -119,7 +119,7 @@ func hwSection() (result []string, err error) {
 	for i, cpu := range hardware.CPUs {
 		title := "CPU"
 		if len(hardware.CPUs) > 1 {
-			title = title + string(i)
+			title = title + fmt.Sprint(i)
 		}
 
 		result = append(result, listItem(fmt.Sprintf("%s: %s (%s)", title, cpu.Model, cpu.Arch)))
@@ -128,7 +128,7 @@ func hwSection() (result []string, err error) {
 	for i, gpu := range hardware.GPUs {
 		title := "GPU"
 		if len(hardware.GPUs) > 1 {
-			title = title + string(i)
+			title = title + fmt.Sprint(i)
 		}
 
 		result = append(result, listItem(fmt.Sprintf("%s: %s", title, gpu.Name)))
@@ -151,7 +151,7 @@ func disksSection() (result []string, err error) {
 	for i, disk := range disks {
 		title := "Drive"
 		if len(disks) > 1 {
-			title = title + string(i)
+			title = title + fmt.Sprint(i)
 		}
 
 		result = append(result, listItem(fmt.Sprintf("%s: %s (%s)", title, disk.Model, disk.Name)))
