@@ -72,7 +72,7 @@ func upgradeApply(c *cli.Context) error {
 	}
 
 	util.SudoIfNeeded(UpgradeEnvars)
-	updated, err := upgrade.ApplySystem(assumeYes)
+	updated, err := upgrade.ApplySystem(assumeYes, false)
 	if err != nil {
 		return cli.Exit(err.Error(), 1)
 	}
@@ -271,5 +271,115 @@ func systemVersionUpgrade(c *cli.Context) error {
 		fmt.Println("sudo dnf system-upgrade reboot")
 	}
 
+	return nil
+}
+
+func upgradeSettingsCommand(c *cli.Context) error {
+	changing := false
+	for _, flag := range []string{"automatic", "offline", "inactive-minutes", "window"} {
+		changing = changing || c.IsSet(flag)
+	}
+	if changing {
+		// UM_UPGRADE_CONFIG points at a test/development file; escalating would
+		// drop it (pkexec clears the environment) and change the real settings.
+		if os.Getenv("UM_UPGRADE_CONFIG") == "" {
+			util.SudoIfNeeded(UpgradeEnvars)
+		}
+		settings, err := upgrade.LoadSettings()
+		if err != nil {
+			// Replace broken settings instead of getting stuck on them.
+			settings = upgrade.DefaultSettings
+		}
+		if c.IsSet("automatic") {
+			settings.Automatic = c.Bool("automatic")
+		}
+		if c.IsSet("offline") {
+			settings.Offline = c.Bool("offline")
+		}
+		if c.IsSet("inactive-minutes") {
+			settings.InactiveMinutes = c.Int("inactive-minutes")
+		}
+		if c.IsSet("window") {
+			start, end, err := upgrade.ParseWindow(c.String("window"))
+			if err != nil {
+				return cli.Exit(err.Error(), 1)
+			}
+			settings.WindowStart, settings.WindowEnd = start, end
+		}
+		if err := settings.Validate(); err != nil {
+			return cli.Exit(err.Error(), 1)
+		}
+		if err := upgrade.SaveSettings(settings); err != nil {
+			return cli.Exit(fmt.Sprintf("failed to save settings: %v", err), 1)
+		}
+	}
+
+	settings, err := upgrade.LoadSettings()
+	if err != nil {
+		return cli.Exit(err.Error(), 1)
+	}
+	if c.Bool("json") {
+		return json.NewEncoder(os.Stdout).Encode(settings)
+	}
+	window := "any time"
+	if settings.WindowStart != "" {
+		window = settings.WindowStart + "-" + settings.WindowEnd
+	}
+	fmt.Printf("Automatic updates: %t\nInstall when the device hasn't been used for: %d minutes\nOnly install during: %s\nInstall system updates while restarting: %t\n",
+		settings.Automatic, settings.InactiveMinutes, window, settings.Offline)
+	return nil
+}
+
+func upgradeScheduleCommand(c *cli.Context) error {
+	if c.Bool("status") {
+		status := upgrade.TonightStatus()
+		if c.Bool("json") {
+			return json.NewEncoder(os.Stdout).Encode(status)
+		}
+		if status.Scheduled {
+			fmt.Println("Updates are scheduled to install tonight.")
+		} else {
+			fmt.Println("No updates are scheduled.")
+		}
+		return nil
+	}
+
+	cancel := c.Bool("cancel")
+	// The user's own updates are scheduled in their user manager first;
+	// SudoIfNeeded then re-runs this command as root for the system part.
+	if os.Getuid() != 0 {
+		if cancel {
+			upgrade.CancelTonight(true)
+		} else if err := upgrade.ScheduleTonight(true); err != nil {
+			return cli.Exit(fmt.Sprintf("failed to schedule your updates: %v", err), 1)
+		}
+	}
+
+	util.SudoIfNeeded(UpgradeEnvars)
+	if cancel {
+		upgrade.CancelTonight(false)
+		fmt.Println("Tonight's updates were cancelled.")
+		return nil
+	}
+	if err := upgrade.ScheduleTonight(false); err != nil {
+		return cli.Exit(fmt.Sprintf("failed to schedule updates: %v", err), 1)
+	}
+	fmt.Println("Updates will be installed tonight, when the device isn't in use.")
+	return nil
+}
+
+// upgradeRunScheduled is run by um's system timers (see upgrade.RunScheduled).
+func upgradeRunScheduled(c *cli.Context) error {
+	if err := upgrade.RunScheduled(c.Bool("tonight")); err != nil {
+		return cli.Exit(err.Error(), 1)
+	}
+	return nil
+}
+
+// upgradeRunUser is run by um's user timers (see upgrade.RunUser).
+func upgradeRunUser(c *cli.Context) error {
+	if err := upgrade.RunUser(c.Bool("tonight")); err != nil {
+		return cli.Exit(err.Error(), 1)
+	}
 	return nil
 }
