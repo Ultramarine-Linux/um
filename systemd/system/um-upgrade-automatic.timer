@@ -1,0 +1,13 @@
+[Unit]
+Description=Install updates automatically when the device isn't in use
+Documentation=https://github.com/Ultramarine-Linux/um
+
+[Timer]
+# um tracks how long no one has used the device and only installs once that
+# exceeds the configured time, at most once a day. Checks are cheap and quiet.
+OnBootSec=5min
+OnUnitActiveSec=5min
+AccuracySec=1min
+
+[Install]
+WantedBy=timers.target
