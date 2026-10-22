@@ -91,5 +91,40 @@ func rpmPackageUpdates() ([]PackageUpdate, error) {
 			OldVersion: installed[u.nameArch], NewVersion: u.version, Icon: "package-x-generic",
 		})
 	}
+	annotateRpmSizes(result)
 	return result, nil
+}
+
+// annotateRpmSizes fills in sizes for RPM updates: download size and install
+// size of the new package from dnf, minus the size of the installed one.
+func annotateRpmSizes(updates []PackageUpdate) {
+	if len(updates) == 0 {
+		return
+	}
+	// dnf5's --queryformat doesn't interpret escapes, so pass real tabs/newlines.
+	upgrades := parseTabSizes(localeIndependentOutput("dnf", "repoquery", "--upgrades", "--latest-limit=1",
+		"--queryformat", "%{name}.%{arch}\t%{downloadsize}\t%{installsize}\n"))
+
+	nameArchs := make([]string, 0, len(updates))
+	for _, u := range updates {
+		nameArchs = append(nameArchs, u.ID)
+	}
+	installed := map[string]int64{}
+	args := append([]string{"-q", "--qf", "%{NAME}.%{ARCH}\t%{SIZE}\n"}, nameArchs...)
+	for key, s := range parseTabSizes(localeIndependentOutput("rpm", args...)) {
+		// Install-only packages (kernels) can be installed several times; the
+		// line for the last one wins, which is close enough for an estimate.
+		installed[key] = s.download
+	}
+
+	for i := range updates {
+		s, ok := upgrades[updates[i].ID]
+		if !ok {
+			continue
+		}
+		updates[i].DownloadSize = s.download
+		if s.installed > 0 {
+			updates[i].InstalledSizeChange = s.installed - installed[updates[i].ID]
+		}
+	}
 }

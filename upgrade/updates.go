@@ -19,10 +19,16 @@ type PackageUpdate struct {
 	// list desktop apps first.
 	Kind string `json:"kind"`
 	// AppID is the AppStream component ID for apps: the Flatpak application ID.
-	AppID      string `json:"app_id,omitempty"`
-	OldVersion string `json:"old_version"`
-	NewVersion string `json:"new_version"`
-	Icon       string `json:"icon"`
+	AppID string `json:"app_id,omitempty"`
+	// DownloadSize is the download size in bytes, 0 if unknown. For Flatpaks
+	// it's the full size; static deltas can make the actual download smaller.
+	DownloadSize int64 `json:"download_size"`
+	// InstalledSizeChange is how much more (or, if negative, less) disk space
+	// the update uses once installed, in bytes. 0 if unknown.
+	InstalledSizeChange int64  `json:"installed_size_change"`
+	OldVersion          string `json:"old_version"`
+	NewVersion          string `json:"new_version"`
+	Icon                string `json:"icon"`
 }
 
 type ListResponse struct {
