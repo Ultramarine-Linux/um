@@ -1,0 +1,12 @@
+[Unit]
+Description=Install updates automatically when the device isn't in use
+Documentation=https://github.com/Ultramarine-Linux/um
+Wants=network-online.target
+After=network-online.target
+# um checks AC power itself, so tonight’s timers behave the same.
+
+[Service]
+Type=oneshot
+ExecStart=/usr/bin/um upgrade run-scheduled
+Nice=19
+IOSchedulingClass=idle

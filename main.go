@@ -81,6 +81,42 @@ func runCli() error {
 						Action: noArgs(upgradeApply),
 						Flags:  []cli.Flag{yesFlag},
 					},
+					{
+						Name:   "settings",
+						Usage:  "Show or change automatic update settings",
+						Action: noArgs(upgradeSettingsCommand),
+						Flags: []cli.Flag{
+							&cli.BoolFlag{Name: "json", Usage: "Output the settings as JSON"},
+							&cli.BoolFlag{Name: "automatic", Usage: "Install updates automatically when the device isn't in use (--automatic=false: only notify)"},
+							&cli.BoolFlag{Name: "offline", Usage: "Install system updates while restarting instead of on the running system"},
+							&cli.IntFlag{Name: "inactive-minutes", Usage: "Install once no one has used the device for this many minutes"},
+							&cli.StringFlag{Name: "window", Usage: "Only install between these times, e.g. 01:00-05:00 (empty: any time)"},
+						},
+					},
+					{
+						Name:   "schedule",
+						Usage:  "Install updates tonight, when the device isn't in use",
+						Action: noArgs(upgradeScheduleCommand),
+						Flags: []cli.Flag{
+							&cli.BoolFlag{Name: "cancel", Usage: "Cancel tonight's updates"},
+							&cli.BoolFlag{Name: "status", Usage: "Show whether updates are scheduled"},
+							&cli.BoolFlag{Name: "json", Usage: "Output the status as JSON (with --status)"},
+						},
+					},
+					{
+						Name:   "run-scheduled",
+						Usage:  "Install system updates if the device isn't in use (run by um's timers)",
+						Hidden: true,
+						Action: noArgs(upgradeRunScheduled),
+						Flags:  []cli.Flag{&cli.BoolFlag{Name: "tonight", Usage: "Run for Apply Tonight, even if automatic updates are off"}},
+					},
+					{
+						Name:   "run-user",
+						Usage:  "Install your updates or notify about them (run by um's user timers)",
+						Hidden: true,
+						Action: noArgs(upgradeRunUser),
+						Flags:  []cli.Flag{&cli.BoolFlag{Name: "tonight", Usage: "Run for Apply Tonight, even if automatic updates are off"}},
+					},
 				},
 			},
 			{

@@ -1,0 +1,13 @@
+[Unit]
+Description=Install your updates automatically, or notify about pending updates
+Documentation=https://github.com/Ultramarine-Linux/um
+
+[Timer]
+# Automatic updates: um tracks how long you haven't used the device.
+# "Ask me": um checks for updates and notifies at most once a day.
+OnStartupSec=5min
+OnUnitActiveSec=5min
+AccuracySec=1min
+
+[Install]
+WantedBy=timers.target

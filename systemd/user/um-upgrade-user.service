@@ -1,0 +1,9 @@
+[Unit]
+Description=Install your updates automatically, or notify about pending updates
+Documentation=https://github.com/Ultramarine-Linux/um
+
+[Service]
+Type=oneshot
+ExecStart=/usr/bin/um upgrade run-user
+Nice=19
+IOSchedulingClass=idle
