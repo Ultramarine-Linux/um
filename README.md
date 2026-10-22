@@ -28,6 +28,12 @@ Use `um upgrade apply --yes` explicitly when scripting or integrating the operat
 
 ## Tweaks
 
+`um tweaks list --json` exposes the available tweaks for desktop integrations such as the Plasma Tweaks KCM. Each entry includes `id`, `description`, `type` (`toggle`, `oneshot` or `script`), `stability`, `warning` and `enabled`. Listing does not require root.
+
+Enabled state is tracked with world-readable marker files in `/var/lib/um/tweaks/<id>.enabled` (or `$UM_STATE/tweaks`). They are written after an `enable` playbook succeeds and removed after `disable` succeeds.
+
+`um tweaks enable`, `disable` and `run` all accept `--yes` for non-interactive use.
+
 Ultramarine Tweak playbooks require the following Ansible collections as RPM packages:
 
 - ansible-collection-ansible-posix
