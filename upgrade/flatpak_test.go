@@ -54,3 +54,31 @@ func TestFlatpakKindFromRef(t *testing.T) {
 		t.Fatalf("unexpected kinds: %+v %+v", app, runtime)
 	}
 }
+
+func TestParseSISize(t *testing.T) {
+	for in, want := range map[string]int64{
+		"418.7 MB":      418700000,
+		"431.7\u00a0MB": 431700000,
+		"1.1 GB":        1100000000,
+		"12.0 kB":       12000,
+		"512 bytes":     512,
+		"1 byte":        1,
+		"":              0,
+		"1,1 GB":        0,
+		"3 parsecs":     0,
+	} {
+		if got := parseSISize(in); got != want {
+			t.Errorf("parseSISize(%q) = %d, want %d", in, got, want)
+		}
+	}
+}
+
+func TestParseFlatpakSizes(t *testing.T) {
+	got := parseFlatpakSizes("org.gnome.Platform\t51\t431.7 MB\t1.1 GB\napp.zen_browser.zen\tstable\t435.4 MB\n")
+	if got["org.gnome.Platform/51"] != (upgradeSize{431700000, 1100000000}) {
+		t.Fatalf("got %+v", got)
+	}
+	if got["app.zen_browser.zen/stable"].download != 435400000 {
+		t.Fatalf("got %+v", got)
+	}
+}
