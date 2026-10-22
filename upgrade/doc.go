@@ -5,8 +5,10 @@
 //
 // [List] collects pending updates from every available source. Each update
 // says whether it's a desktop app ([KindApp]), a runtime or another package,
-// so frontends like the Plasma Updates KCM can show apps first. A failing
-// source is reported in [ListResponse.Errors] without hiding the others.
+// so frontends like the Plasma Updates KCM can show apps first. RPM apps are
+// recognized from their AppStream metainfo, or their launcher if they ship no
+// metainfo. A failing source is reported in [ListResponse.Errors] without
+// hiding the others.
 //
 // # Installing
 //

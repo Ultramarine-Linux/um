@@ -18,7 +18,8 @@ type PackageUpdate struct {
 	// Kind is KindApp, KindRuntime or KindPackage. Frontends can use it to
 	// list desktop apps first.
 	Kind string `json:"kind"`
-	// AppID is the AppStream component ID for apps: the Flatpak application ID.
+	// AppID is the AppStream component ID for apps, when known: the Flatpak
+	// application ID, or the ID from the package's metainfo.
 	AppID string `json:"app_id,omitempty"`
 	// DownloadSize is the download size in bytes, 0 if unknown. For Flatpaks
 	// it's the full size; static deltas can make the actual download smaller.
