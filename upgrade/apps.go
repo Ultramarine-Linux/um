@@ -151,6 +151,9 @@ func parseDesktopEntry(content string) (entry desktopEntry, ok bool) {
 type rpmAppFiles struct {
 	Metainfo []string
 	Desktop  []string
+	// ApplicationsDir is where the package's launchers live. Empty means
+	// /usr/share/applications; Nix packages use <store path>/share/applications.
+	ApplicationsDir string
 }
 
 // parseRpmAppFiles parses `rpm -q --qf '[%{=NAME}.%{=ARCH}\t%{FILENAMES}\n]'`
@@ -244,9 +247,13 @@ func resolveApp(packageName string, files *rpmAppFiles, read fileReader) (appInf
 		return appInfo{}, false
 	}
 
+	appsDir := files.ApplicationsDir
+	if appsDir == "" {
+		appsDir = applicationsDir
+	}
 	launcher := func(desktopIDs []string) (desktopEntry, bool) {
 		for _, id := range desktopIDs {
-			path := filepath.Join(applicationsDir, id)
+			path := filepath.Join(appsDir, id)
 			if content, err := read(path); err == nil {
 				if entry, ok := parseDesktopEntry(string(content)); ok {
 					return entry, true

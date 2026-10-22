@@ -13,7 +13,7 @@ type PackageUpdate struct {
 	// package name or Flatpak name.
 	Name   string `json:"name"`
 	Source string `json:"source"`
-	// Backend is the package manager handling the update: "rpm" or "flatpak".
+	// Backend is the package manager handling the update: "rpm", "flatpak" or "nix".
 	Backend string `json:"backend"`
 	// Kind is KindApp, KindRuntime or KindPackage. Frontends can use it to
 	// list desktop apps first.
@@ -65,6 +65,14 @@ func List() ListResponse {
 	if _, err := exec.LookPath("dnf"); err == nil {
 		updates, err := rpmPackageUpdates()
 		collect("rpm", updates, err)
+	}
+	if determinateNixdBinary() != "" {
+		updates, err := determinateNixUpdate()
+		collect("determinate nix", updates, err)
+	}
+	if canManageNixProfile() {
+		updates, err := nixPackageUpdates()
+		collect("nix profile", updates, err)
 	}
 	if _, err := exec.LookPath("flatpak"); err == nil {
 		for _, installation := range flatpakInstallations {
