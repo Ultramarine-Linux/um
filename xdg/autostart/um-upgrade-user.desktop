@@ -1,0 +1,8 @@
+[Desktop Entry]
+Type=Application
+Name=Ultramarine Updates
+Comment=Install your updates when you're not using the device, or notify about them
+Exec=systemctl --user start um-upgrade-user.timer
+TryExec=um
+NoDisplay=true
+Terminal=false
