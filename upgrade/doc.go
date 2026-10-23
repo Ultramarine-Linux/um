@@ -31,9 +31,9 @@
 // updates are staged for the next restart.
 //
 // um's timers (systemd/ in the repository) call [RunScheduled] (system, as
-// root) and [RunUser] (per user) every few minutes. They track how long no
-// one has used the device and install at most once a day; otherwise they do
-// nothing, quietly. With automatic updates off, RunUser notifies about
+// root) and [RunUser] (per user, started by the XDG autostart entry in
+// xdg/) every few minutes. They track how long no one has used the device
+// and install at most once a day; otherwise they do nothing, quietly. With automatic updates off, RunUser notifies about
 // pending updates once a day instead.
 //
 // [ScheduleTonight] ("Apply Tonight") creates transient timers that do the

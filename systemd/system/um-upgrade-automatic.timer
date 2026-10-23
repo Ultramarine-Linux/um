@@ -8,6 +8,5 @@ Documentation=https://github.com/Ultramarine-Linux/um
 OnBootSec=5min
 OnUnitActiveSec=5min
 AccuracySec=1min
-
-[Install]
-WantedBy=timers.target
+# No [Install] section: the timer is pulled in statically by the
+# timers.target.wants/ symlink next to it, so no preset is needed.
