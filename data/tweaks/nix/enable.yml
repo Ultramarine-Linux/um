@@ -120,10 +120,28 @@
             path: /nix/receipt.json
         register: nix_receipt
 
+      - name: Check for an image mode (bootc) system
+        ansible.builtin.stat:
+            path: /run/ostree-booted
+        register: ostree_booted
+
       - name: Execute Installer
         ansible.builtin.shell:
             cmd: /tmp/nix-installer-tweak/nix-installer.sh install --no-confirm
-        when: not nix_receipt.stat.exists
+        when:
+            - not nix_receipt.stat.exists
+            - not ostree_booted.stat.exists
+
+      # On bootc the installer uses its ostree planner, which bind mounts a
+      # persistence dir onto /nix with its own /etc/systemd/system/nix.mount.
+      # Ultramarine bootc already ships a nix.mount for /var/nix, so point the
+      # installer at the same dir instead of shadowing it with /var/home/nix.
+      - name: Execute Installer (bootc)
+        ansible.builtin.shell:
+            cmd: /tmp/nix-installer-tweak/nix-installer.sh install ostree --persistence /var/nix --no-confirm
+        when:
+            - not nix_receipt.stat.exists
+            - ostree_booted.stat.exists
 
       - name: Cleanup
         ansible.builtin.file:

@@ -5,37 +5,6 @@
   become: true
   gather_facts: true
   tasks:
-      # ansible.builtin.dnf picks its backend from ansible_pkg_mgr, which comes
-      # back as "atomic_container"/"unknown" in a bunch of cases and makes it
-      # error out with "Could not detect which major revision of dnf is in use".
-      # Ultramarine is dnf5-only, so use the dnf5 module directly.
-      - name: Ensure this is not an atomic/bootc system
-        ansible.builtin.stat:
-            path: /run/ostree-booted
-        register: ostree_booted
-
-      - name: Fail on atomic/bootc systems
-        ansible.builtin.assert:
-            that:
-                - not ostree_booted.stat.exists
-            fail_msg: >-
-                This tweak uses dnf and can't be applied on an atomic/bootc system.
-                Add the CachyOS kernel to your image instead.
-
-      # the dnf5 module needs the libdnf5 python bindings on the system python
-      - name: Check for libdnf5 python bindings
-        ansible.builtin.command:
-            cmd: /usr/bin/python3 -c "import libdnf5"
-        register: libdnf5_check
-        changed_when: false
-        failed_when: false
-
-      - name: Install libdnf5 python bindings
-        ansible.builtin.command:
-            cmd: dnf5 install -y python3-libdnf5
-        when: libdnf5_check.rc != 0
-        changed_when: true
-
       # kernel-cachyos is built for x86-64-v3, it won't boot on anything older
       - name: Check for x86-64-v3 support
         ansible.builtin.command:
@@ -51,70 +20,101 @@
                 This CPU does not support x86-64-v3 (AVX2), so the CachyOS kernel
                 will not boot on it. Aborting.
 
-      - name: Add CachyOS COPR repository
-        ansible.builtin.copy:
-            dest: /etc/yum.repos.d/copr-kernel-cachyos.repo
-            mode: "0644"
-            content: |
-                # This file is managed by `um tweak` - manual changes will be overwritten
-                [copr:copr.fedorainfracloud.org:bieszczaders:kernel-cachyos]
-                name=Copr repo for kernel-cachyos owned by bieszczaders
-                baseurl=https://download.copr.fedorainfracloud.org/results/bieszczaders/kernel-cachyos/fedora-$releasever-$basearch/
-                type=rpm-md
-                skip_if_unavailable=True
-                gpgcheck=1
-                gpgkey=https://download.copr.fedorainfracloud.org/results/bieszczaders/kernel-cachyos/pubkey.gpg
-                repo_gpgcheck=0
-                enabled=1
-                enabled_metadata=1
+      - name: Check for an image mode (bootc) system
+        ansible.builtin.stat:
+            path: /run/ostree-booted
+        register: ostree_booted
 
-      - name: "SELinux: Allow loading kernel modules"
-        ansible.posix.seboolean:
-            name: domain_kernel_load_modules
-            state: true
-            persistent: true
-        when: ansible_selinux.status == 'enabled'
+      - name: Switch to the CachyOS image variant
+        ansible.builtin.include_tasks: tasks/bootc.yml
+        vars:
+            cachyos_enable: true
+        when: ostree_booted.stat.exists
 
-      # Old versions of this tweak dropped a script in /etc/kernel/postinst.d,
-      # which nothing on Fedora actually runs. Clean it up.
-      - name: Remove legacy postinst.d script
-        ansible.builtin.file:
-            path: /etc/kernel/postinst.d/98-cachyos-set-default
-            state: absent
+      - name: Install the CachyOS kernel with dnf
+        when: not ostree_booted.stat.exists
+        block:
+            # ansible.builtin.dnf picks its backend from ansible_pkg_mgr, which can
+            # come back as "unknown" and make it error out with "Could not detect
+            # which major revision of dnf is in use". Ultramarine is dnf5-only, so
+            # use the dnf5 module directly. It needs the libdnf5 python bindings.
+            - name: Check for libdnf5 python bindings
+              ansible.builtin.command:
+                  cmd: /usr/bin/python3 -c "import libdnf5"
+              register: libdnf5_check
+              changed_when: false
+              failed_when: false
 
-      - name: Ensure kernel-install plugin directory exists
-        ansible.builtin.file:
-            path: /etc/kernel/install.d
-            state: directory
-            owner: root
-            group: root
-            mode: "0755"
+            - name: Install libdnf5 python bindings
+              ansible.builtin.command:
+                  cmd: dnf5 install -y python3-libdnf5
+              when: libdnf5_check.rc != 0
+              changed_when: true
 
-      # Without this, every Fedora kernel update becomes the new default entry.
-      # kernel-install runs plugins in /etc/kernel/install.d on every kernel add.
-      - name: Keep the CachyOS kernel as the default boot entry
-        ansible.builtin.copy:
-            dest: /etc/kernel/install.d/99-um-cachyos-default.install
-            mode: "0755"
-            content: |
-                #!/bin/sh
-                # This script is managed by `um tweak` - manual changes will be overwritten
-                [ "$1" = "add" ] || exit 0
-                command -v grubby >/dev/null 2>&1 || exit 0
+            - name: Add CachyOS COPR repository
+              ansible.builtin.copy:
+                  dest: /etc/yum.repos.d/copr-kernel-cachyos.repo
+                  mode: "0644"
+                  content: |
+                      # This file is managed by `um tweak` - manual changes will be overwritten
+                      [copr:copr.fedorainfracloud.org:bieszczaders:kernel-cachyos]
+                      name=Copr repo for kernel-cachyos owned by bieszczaders
+                      baseurl=https://download.copr.fedorainfracloud.org/results/bieszczaders/kernel-cachyos/fedora-$releasever-$basearch/
+                      type=rpm-md
+                      skip_if_unavailable=True
+                      gpgcheck=1
+                      gpgkey=https://download.copr.fedorainfracloud.org/results/bieszczaders/kernel-cachyos/pubkey.gpg
+                      repo_gpgcheck=0
+                      enabled=1
+                      enabled_metadata=1
 
-                latest="$(ls -1 /boot/vmlinuz-*cachy* 2>/dev/null | sort -V | tail -n1)"
-                [ -n "$latest" ] || exit 0
+            - name: "SELinux: Allow loading kernel modules"
+              ansible.posix.seboolean:
+                  name: domain_kernel_load_modules
+                  state: true
+                  persistent: true
+              when: ansible_selinux.status == 'enabled'
 
-                grubby --set-default="$latest" || :
+            # Old versions of this tweak dropped a script in /etc/kernel/postinst.d,
+            # which nothing on Fedora actually runs. Clean it up.
+            - name: Remove legacy postinst.d script
+              ansible.builtin.file:
+                  path: /etc/kernel/postinst.d/98-cachyos-set-default
+                  state: absent
 
-      - name: Install CachyOS kernel package
-        ansible.builtin.dnf5:
-            name:
-                - kernel-cachyos
-                - kernel-cachyos-devel-matched
-            state: present
+            - name: Ensure kernel-install plugin directory exists
+              ansible.builtin.file:
+                  path: /etc/kernel/install.d
+                  state: directory
+                  owner: root
+                  group: root
+                  mode: "0755"
 
-      - name: Set the CachyOS kernel as the default boot entry
-        ansible.builtin.command:
-            cmd: /etc/kernel/install.d/99-um-cachyos-default.install add
-        changed_when: true
+            # Without this, every Fedora kernel update becomes the new default entry.
+            # kernel-install runs plugins in /etc/kernel/install.d on every kernel add.
+            - name: Keep the CachyOS kernel as the default boot entry
+              ansible.builtin.copy:
+                  dest: /etc/kernel/install.d/99-um-cachyos-default.install
+                  mode: "0755"
+                  content: |
+                      #!/bin/sh
+                      # This script is managed by `um tweak` - manual changes will be overwritten
+                      [ "$1" = "add" ] || exit 0
+                      command -v grubby >/dev/null 2>&1 || exit 0
+
+                      latest="$(ls -1 /boot/vmlinuz-*cachy* 2>/dev/null | sort -V | tail -n1)"
+                      [ -n "$latest" ] || exit 0
+
+                      grubby --set-default="$latest" || :
+
+            - name: Install CachyOS kernel package
+              ansible.builtin.dnf5:
+                  name:
+                      - kernel-cachyos
+                      - kernel-cachyos-devel-matched
+                  state: present
+
+            - name: Set the CachyOS kernel as the default boot entry
+              ansible.builtin.command:
+                  cmd: /etc/kernel/install.d/99-um-cachyos-default.install add
+              changed_when: true
