@@ -1,7 +1,11 @@
 package main
 
 import (
+	"encoding/json"
+	"errors"
 	"fmt"
+	"os"
+	"os/exec"
 
 	"github.com/Ultramarine-Linux/um/pkg/util"
 	"github.com/Ultramarine-Linux/um/tweaks"
@@ -12,27 +16,55 @@ import (
 var Envars = []string{
 	"UM_TWEAKS_PATH",
 	"UM_DATA",
+	"UM_STATE",
+}
+
+// playbookExit makes um exit with ansible-playbook's exit code when a playbook
+// fails, instead of always exiting with 1.
+func playbookExit(err error) error {
+	var exitErr *exec.ExitError
+	if errors.As(err, &exitErr) && exitErr.ExitCode() > 0 {
+		code := exitErr.ExitCode()
+		// Frontends read 126/127 as pkexec's "dismissed"/"not authorized".
+		if code == 126 || code == 127 {
+			code = 1
+		}
+		return cli.Exit(fmt.Sprintf("ansible-playbook failed: %v", err), code)
+	}
+	return err
 }
 
 func listTweaks(c *cli.Context) error {
-	util.SudoIfNeeded(Envars)
-	tweaks, err := tweaks.List()
+	// Listing only reads metadata and world-readable state, so no escalation
+	// is needed. This lets GUI frontends query tweaks without a password prompt.
+	tweakList, err := tweaks.List()
 	if err != nil {
 		return err
 	}
 
-	for name, tweak := range tweaks {
-		fmt.Printf("- ID: %s\n", name)
-		if tweak.Description != nil {
-			fmt.Printf("  Description: %s\n", *tweak.Description)
+	entries := tweaks.SortedEntries(tweakList)
+
+	if c.Bool("json") {
+		return json.NewEncoder(os.Stdout).Encode(struct {
+			Version int                `json:"version"`
+			Tweaks  []tweaks.ListEntry `json:"tweaks"`
+		}{1, entries})
+	}
+
+	for _, tweak := range entries {
+		fmt.Printf("- ID: %s\n", tweak.ID)
+		if tweak.Description != "" {
+			fmt.Printf("  Description: %s\n", tweak.Description)
 		}
-		fmt.Printf("  Type: %s\n", tweak.TweakType)
-		if tweak.Stability != nil {
-			fmt.Printf("  Stability: %s\n", tweak.Stability.String())
+		fmt.Printf("  Type: %s\n", tweak.Type)
+		if tweak.Stability != "" {
+			fmt.Printf("  Stability: %s\n", tweak.Stability)
 		}
-		// if tweak.Warning != nil {
-		// 	fmt.Printf("  Warning: %s\n", *tweak.Warning)
-		// }
+		if tweak.StateError != "" {
+			fmt.Printf("  Enabled: unknown (%s)\n", tweak.StateError)
+		} else if tweak.Type != "script" {
+			fmt.Printf("  Enabled: %t\n", tweak.Enabled)
+		}
 		fmt.Println()
 	}
 
@@ -40,11 +72,15 @@ func listTweaks(c *cli.Context) error {
 }
 
 func enableTweak(c *cli.Context) error {
-	util.SudoIfNeeded(Envars)
 	if c.Args().Len() < 1 {
 		return fmt.Errorf("Please provide a tweak ID to enable")
 	}
 	tweakID := c.Args().Get(0)
+	// Validate before escalating so bad input never reaches a password prompt.
+	if err := tweaks.ValidateID(tweakID); err != nil {
+		return err
+	}
+	util.SudoIfNeeded(Envars)
 
 	tweak, err := tweaks.LoadTweakId(tweakID)
 	if err != nil {
@@ -92,18 +128,22 @@ func enableTweak(c *cli.Context) error {
 	}
 
 	if err := tweak.Enable(); err != nil {
-		return err
+		return playbookExit(err)
 	}
 
 	return nil
 }
 
 func disableTweak(c *cli.Context) error {
-	util.SudoIfNeeded(Envars)
 	if c.Args().Len() < 1 {
 		return fmt.Errorf("Please provide a tweak ID to disable")
 	}
 	tweakID := c.Args().Get(0)
+	// Validate before escalating so bad input never reaches a password prompt.
+	if err := tweaks.ValidateID(tweakID); err != nil {
+		return err
+	}
+	util.SudoIfNeeded(Envars)
 
 	tweak, err := tweaks.LoadTweakId(tweakID)
 	if err != nil {
@@ -136,7 +176,7 @@ func disableTweak(c *cli.Context) error {
 	}
 
 	if err := tweak.Disable(); err != nil {
-		return err
+		return playbookExit(err)
 	}
 
 	return nil
@@ -147,6 +187,9 @@ func runTweak(c *cli.Context) error {
 		return cli.Exit("A tweak ID must be passed", 1)
 	}
 	tweakID := c.Args().First()
+	if err := tweaks.ValidateID(tweakID); err != nil {
+		return err
+	}
 
 	util.SudoIfNeeded(Envars)
 
