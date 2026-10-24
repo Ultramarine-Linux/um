@@ -1,21 +1,15 @@
 ---
 - name: Enable IPv4 MTU Probing
   hosts: localhost
+  connection: local
   become: true
-
+  gather_facts: false
   tasks:
       - name: Enable IPv4 MTU probing
         ansible.posix.sysctl:
             name: net.ipv4.tcp_mtu_probing
-            value: 1
+            value: "1"
+            sysctl_file: /etc/sysctl.d/90-um-mtu-probing.conf
             state: present
-            sysctl_set: yes
-            reload: yes
-  handlers:
-      - name: Reload sysctl
-        listen: Reload sysctl
-        become: true
-        ansible.builtin.systemd:
-            name: systemd-sysctl
-            state: restarted
-            enabled: yes
+            sysctl_set: true
+            reload: true

@@ -39,66 +39,64 @@
               changed_when: false
               failed_when: false
 
-            - name: Start and enable existing nix.mount unit
+            # fstab-generated and static units can't be enabled, only start those
+            - name: Start existing nix.mount unit
               ansible.builtin.systemd_service:
                   name: nix.mount
                   state: started
-                  enabled: "{{ true if ' static' not in nix_mount_unit.stdout else omit }}"
+                  enabled: "{{ true if nix_mount_unit.stdout is search(' (enabled|disabled)') else omit }}"
               when: nix_mount_unit.stdout != ''
 
-            - name: Get the btrfs filesystem UUID
-              ansible.builtin.shell:
-                cmd: |
-                  set -euo pipefail
-                  btrfs filesystem show / | awk -F'uuid: ' '/uuid:/ {print $2; exit}'
-              register: btrfs_uuid
-              changed_when: false
+            - name: Create and mount a dedicated /nix subvolume
               when:
                   - nix_mountpoint.rc != 0
                   - nix_mount_unit.stdout == ''
+              block:
+                  - name: Get the btrfs filesystem UUID
+                    ansible.builtin.command:
+                      cmd: findmnt -no UUID --target /
+                    register: btrfs_uuid
+                    changed_when: false
 
-            - name: Create Nix btrfs subvolume
-              community.general.btrfs_subvolume:
-                  name: /nix
-                  filesystem_uuid: "{{ btrfs_uuid.stdout }}"
-                  automount: true
-              when:
-                  - nix_mountpoint.rc != 0
-                  - nix_mount_unit.stdout == ''
+                  - name: Create Nix btrfs subvolume
+                    community.general.btrfs_subvolume:
+                        name: /nix
+                        filesystem_uuid: "{{ btrfs_uuid.stdout }}"
+                        automount: true
 
-            - name: Ensure /nix exists for subvol mount path
-              ansible.builtin.file:
-                  path: /nix
-                  state: directory
-                  owner: root
-                  group: root
-              when:
-                  - nix_mountpoint.rc != 0
-                  - nix_mount_unit.stdout == ''
+                  - name: Ensure /nix exists for subvol mount path
+                    ansible.builtin.file:
+                        path: /nix
+                        state: directory
+                        owner: root
+                        group: root
+                        mode: "0755"
 
-            # We mount ephemerally first to make sure we fail if this doesn't work
-            # instead of cursing /etc/fstab to a failed state
-            - name: Mount /nix
-              ansible.builtin.shell:
-                cmd: mount -o "subvol=nix,noatime,compress=zstd:7" UUID={{ btrfs_uuid.stdout }} /nix
-              when:
-                  - nix_mountpoint.rc != 0
-                  - nix_mount_unit.stdout == ''
+                  # We mount ephemerally first to make sure we fail if this doesn't work
+                  # instead of cursing /etc/fstab to a failed state
+                  - name: Mount /nix
+                    ansible.builtin.command:
+                      cmd: mount -o subvol=nix,noatime UUID={{ btrfs_uuid.stdout }} /nix
 
-            # In a just world, state: mounted in the below task would do the above task.
-            # Our world is not just. Our world is not kind. ansible.posix.mount
-            # does not have any idea what a subvol is and will try (and fail)
-            # to unmount root.
-            - name: Add Nix subvolume to /etc/fstab
-              ansible.posix.mount:
-                  src: "UUID={{ btrfs_uuid.stdout }}"
-                  path: /nix
-                  fstype: btrfs
-                  opts: subvol=nix,noatime,compress=zstd:7
-                  state: present
-              when:
-                  - nix_mountpoint.rc != 0
-                  - nix_mount_unit.stdout == ''
+                  # In a just world, state: mounted in the below task would do the above task.
+                  # Our world is not just. Our world is not kind. ansible.posix.mount
+                  # does not have any idea what a subvol is and will try (and fail)
+                  # to unmount root.
+                  - name: Add Nix subvolume to /etc/fstab
+                    ansible.posix.mount:
+                        src: "UUID={{ btrfs_uuid.stdout }}"
+                        path: /nix
+                        fstype: btrfs
+                        opts: subvol=nix,noatime
+                        state: present
+
+                  # compress= is a filesystem-wide mount option on btrfs, so passing
+                  # it for a subvol mount silently does nothing. Set it as a property
+                  # on the subvol instead so everything under /nix inherits it.
+                  - name: Enable zstd compression on /nix
+                    ansible.builtin.command:
+                      cmd: btrfs property set /nix compression zstd
+                    changed_when: true
 
       - name: Ensure path in /tmp for storing installer
         ansible.builtin.file:
@@ -122,12 +120,30 @@
             path: /nix/receipt.json
         register: nix_receipt
 
+      - name: Check for an image mode (bootc) system
+        ansible.builtin.stat:
+            path: /run/ostree-booted
+        register: ostree_booted
+
       - name: Execute Installer
         ansible.builtin.shell:
             cmd: /tmp/nix-installer-tweak/nix-installer.sh install --no-confirm
-        when: not nix_receipt.stat.exists
+        when:
+            - not nix_receipt.stat.exists
+            - not ostree_booted.stat.exists
+
+      # On bootc the installer uses its ostree planner, which bind mounts a
+      # persistence dir onto /nix with its own /etc/systemd/system/nix.mount.
+      # Ultramarine bootc already ships a nix.mount for /var/nix, so point the
+      # installer at the same dir instead of shadowing it with /var/home/nix.
+      - name: Execute Installer (bootc)
+        ansible.builtin.shell:
+            cmd: /tmp/nix-installer-tweak/nix-installer.sh install ostree --persistence /var/nix --no-confirm
+        when:
+            - not nix_receipt.stat.exists
+            - ostree_booted.stat.exists
 
       - name: Cleanup
         ansible.builtin.file:
-          name: /tmp/nix-installer-tweak
+          path: /tmp/nix-installer-tweak
           state: absent

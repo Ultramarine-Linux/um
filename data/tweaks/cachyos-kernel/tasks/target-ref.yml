@@ -1,0 +1,39 @@
+---
+# Work out the CachyOS (or stock) variant of cachyos_current_ref.
+# Sets cachyos_target_ref.
+
+- name: Split image reference into repository and tag
+  ansible.builtin.set_fact:
+      cachyos_ref_parts: "{{ cachyos_current_ref | regex_search('^(.+):([^:/@]+)$', '\\1', '\\2') }}"
+
+- name: Ensure the image reference has a tag
+  ansible.builtin.assert:
+      that:
+          - "'@' not in cachyos_current_ref"
+          - cachyos_ref_parts | length == 2
+      fail_msg: >-
+          Can't work out the CachyOS variant of {{ cachyos_current_ref }},
+          it needs to be a tagged image (repo:tag), not a digest or untagged ref.
+
+- name: Set repository and tag
+  ansible.builtin.set_fact:
+      cachyos_repo: "{{ cachyos_ref_parts[0] }}"
+      cachyos_tag: "{{ cachyos_ref_parts[1] }}"
+
+# Other tier2 variants (surface, nvidia, ...) ship their own kernel or kmods
+# built against the stock one, so they can't be stacked with -cachyos.
+- name: Ensure this isn't another tier2 variant
+  ansible.builtin.assert:
+      that:
+          - cachyos_tag is not search('-(surface|nvidia|standard|steam|run0|rpi)$')
+      fail_msg: >-
+          {{ cachyos_current_ref }} is a tier2 variant that can't be combined
+          with the CachyOS kernel.
+
+- name: Compute target image
+  ansible.builtin.set_fact:
+      cachyos_target_ref: >-
+          {{ cachyos_repo }}:{{
+             (cachyos_tag | regex_replace('-cachyos$', '') ~ '-cachyos') if cachyos_enable
+             else (cachyos_tag | regex_replace('-cachyos$', ''))
+          }}

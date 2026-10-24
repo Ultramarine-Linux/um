@@ -5,33 +5,89 @@
   become: true
   gather_facts: true
   tasks:
-      - name: Remove CachyOS COPR repository
-        ansible.builtin.file:
-            path: /etc/yum.repos.d/copr-kernel-cachyos.repo
-            state: absent
-      - name: "SELinux: Disallow loading kernel modules"
-        ansible.posix.seboolean:
-            name: domain_kernel_load_modules
-            state: off
-            persistent: yes
+      - name: Check for an image mode (bootc) system
+        ansible.builtin.stat:
+            path: /run/ostree-booted
+        register: ostree_booted
 
-      - name: Remove automatic default kernel script for CachyOS kernel
-        ansible.builtin.file:
-            path: /etc/kernel/postinst.d/98-cachyos-set-default
-            state: absent
+      - name: Switch back to the stock image variant
+        ansible.builtin.include_tasks: tasks/bootc.yml
+        vars:
+            cachyos_enable: false
+        when: ostree_booted.stat.exists
 
-      - name: Make sure Fedora ARK kernel still installed
-        ansible.builtin.dnf:
-            name:
-                - kernel
-                - kernel-devel-matched
-            state: present
+      - name: Remove the CachyOS kernel with dnf
+        when: not ostree_booted.stat.exists
+        block:
+            # dnf refuses to remove the running kernel, so bail early with a useful
+            # message instead of leaving things half torn down.
+            - name: Ensure we are not running the CachyOS kernel
+              ansible.builtin.assert:
+                  that:
+                      - "'cachyos' not in ansible_kernel"
+                  fail_msg: >-
+                      You are currently running the CachyOS kernel ({{ ansible_kernel }}).
+                      Reboot into a Fedora kernel first, then disable this tweak again.
 
-      - name: Remove CachyOS kernel package
-        ansible.builtin.dnf:
-            name:
-                - kernel-cachyos
-                - kernel-cachyos-devel-matched
-                - kernel-cachyos-*
-            state: removed
-            allowerasing: true
+            # see enable.yml for why this is dnf5 and not dnf
+            - name: Check for libdnf5 python bindings
+              ansible.builtin.command:
+                  cmd: /usr/bin/python3 -c "import libdnf5"
+              register: libdnf5_check
+              changed_when: false
+              failed_when: false
+
+            - name: Install libdnf5 python bindings
+              ansible.builtin.command:
+                  cmd: dnf5 install -y python3-libdnf5
+              when: libdnf5_check.rc != 0
+              changed_when: true
+
+            - name: Make sure Fedora ARK kernel still installed
+              ansible.builtin.dnf5:
+                  name:
+                      - kernel
+                      - kernel-devel-matched
+                  state: present
+
+            - name: Remove CachyOS kernel default boot entry hook
+              ansible.builtin.file:
+                  path: "{{ item }}"
+                  state: absent
+              loop:
+                  - /etc/kernel/install.d/99-um-cachyos-default.install
+                  - /etc/kernel/postinst.d/98-cachyos-set-default
+
+            - name: Remove CachyOS kernel package
+              ansible.builtin.dnf5:
+                  name:
+                      - kernel-cachyos*
+                  state: absent
+                  allowerasing: true
+
+            - name: Remove CachyOS COPR repository
+              ansible.builtin.file:
+                  path: /etc/yum.repos.d/copr-kernel-cachyos.repo
+                  state: absent
+
+            - name: Check for grubby
+              ansible.builtin.shell:
+                  cmd: command -v grubby
+              register: grubby_check
+              changed_when: false
+              failed_when: false
+
+            - name: Set the latest Fedora kernel as the default boot entry
+              ansible.builtin.shell:
+                  cmd: |
+                      latest="$(ls -1 /boot/vmlinuz-* | grep -v -e cachy -e rescue | sort -V | tail -n1)"
+                      [ -n "$latest" ] && grubby --set-default="$latest"
+              when: grubby_check.rc == 0
+              changed_when: true
+
+            - name: "SELinux: Disallow loading kernel modules"
+              ansible.posix.seboolean:
+                  name: domain_kernel_load_modules
+                  state: false
+                  persistent: true
+              when: ansible_selinux.status == 'enabled'

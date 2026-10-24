@@ -50,11 +50,19 @@
       - name: Tear down the dedicated /nix btrfs subvolume
         when: root_fstype.stdout == 'btrfs'
         block:
+            # Only tear down the subvol if we're the ones who set it up (fstab
+            # entry pointing at subvol=nix). Anything else, like the nix.mount
+            # shipped on Ultramarine bootc images, isn't ours to delete.
+            - name: Check for our /nix fstab entry
+              ansible.builtin.command:
+                cmd: findmnt --fstab -no OPTIONS /nix
+              register: nix_fstab
+              changed_when: false
+              failed_when: false
+
             - name: Get the btrfs filesystem UUID
-              ansible.builtin.shell:
-                cmd: |
-                  set -euo pipefail
-                  btrfs filesystem show / | awk -F'uuid: ' '/uuid:/ {print $2; exit}'
+              ansible.builtin.command:
+                cmd: findmnt -no UUID --target /
               register: btrfs_uuid
               changed_when: false
 
@@ -66,12 +74,28 @@
               ansible.posix.mount:
                   path: /nix
                   state: absent
+              when: nix_fstab.stdout is search('subvol=/?nix(,|$)')
 
             - name: Remove Nix btrfs subvolume
               community.general.btrfs_subvolume:
                   name: /nix
                   filesystem_uuid: "{{ btrfs_uuid.stdout }}"
                   state: absent
+              when: nix_fstab.stdout is search('subvol=/?nix(,|$)')
+
+      # If /nix is still a mountpoint (e.g. nix.mount on bootc), don't rm -rf
+      # whatever is mounted there.
+      - name: Check for an image mode (bootc) system
+        ansible.builtin.stat:
+            path: /run/ostree-booted
+        register: ostree_booted
+
+      - name: Check whether /nix is still mounted
+        ansible.builtin.command:
+          cmd: mountpoint -q /nix
+        register: nix_mountpoint
+        changed_when: false
+        failed_when: false
 
       # Empty mountpoint dir on btrfs, or whatever the uninstaller left behind
       # elsewhere. Safe either way once Nix itself is gone.
@@ -79,6 +103,10 @@
         ansible.builtin.file:
             path: /nix
             state: absent
+        # on bootc /nix is part of the read-only image, leave it be
+        when:
+            - nix_mountpoint.rc != 0
+            - not ostree_booted.stat.exists
 
       - name: Cleanup
         ansible.builtin.file:
