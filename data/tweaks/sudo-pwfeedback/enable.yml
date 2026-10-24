@@ -16,4 +16,4 @@
             group: root
             mode: "0440"
             # a broken sudoers drop-in locks you out of sudo, don't risk it
-            validate: /usr/sbin/visudo -cf %s
+            validate: /usr/bin/visudo -cf %s
