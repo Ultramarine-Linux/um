@@ -7,7 +7,14 @@
 <policyconfig>
   <vendor>Ultramarine Linux</vendor>
   <vendor_url>https://ultramarine-linux.org</vendor_url>
-  <action id="org.ultramarine.um.manage">
+  <!--
+    Only covers `um tweaks ...` (argv1 = tweaks). Other um commands that
+    escalate through pkexec fall back to the generic
+    org.freedesktop.policykit.exec action. exec.path must be the canonical
+    path of the binary: pkexec resolves symlinks before matching, so
+    /usr/bin/um has to be the real file, not a symlink.
+  -->
+  <action id="org.ultramarine.um.tweaks">
     <description>Manage system tweaks</description>
     <message>Authentication is required to change system tweaks</message>
     <icon_name>preferences-system</icon_name>
@@ -17,5 +24,6 @@
       <allow_active>auth_admin_keep</allow_active>
     </defaults>
     <annotate key="org.freedesktop.policykit.exec.path">/usr/bin/um</annotate>
+    <annotate key="org.freedesktop.policykit.exec.argv1">tweaks</annotate>
   </action>
 </policyconfig>
