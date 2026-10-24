@@ -8,8 +8,8 @@
   <vendor>Ultramarine Linux</vendor>
   <vendor_url>https://ultramarine-linux.org</vendor_url>
   <action id="org.ultramarine.um.manage">
-    <description>Manage system updates and tweaks</description>
-    <message>Authentication is required to update the system or change system tweaks</message>
+    <description>Manage system updates</description>
+    <message>Authentication is required change system tweaks</message>
     <icon_name>system-software-update</icon_name>
     <defaults>
       <allow_any>auth_admin</allow_any>
