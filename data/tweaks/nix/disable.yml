@@ -8,7 +8,7 @@
   hosts: localhost
   connection: local
   become: true
-  gather_facts: true
+  gather_facts: false
   tasks:
       - name: Get filesystem type of the root mount
         ansible.builtin.command:

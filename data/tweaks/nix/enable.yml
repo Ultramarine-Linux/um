@@ -8,7 +8,7 @@
   hosts: localhost
   connection: local
   become: true
-  gather_facts: true
+  gather_facts: false
   tasks:
       - name: Get filesystem type of the root mount
         ansible.builtin.command:
@@ -39,8 +39,10 @@
               changed_when: false
               failed_when: false
 
-            # fstab-generated and static units can't be enabled, only start those
-            - name: Start existing nix.mount unit
+            # Ultramarine bootc ships nix.mount as a real unit, so enable and start it.
+            # the enabled check is only a fallback for generated or static units,
+            # which systemd refuses to enable.
+            - name: Enable and start existing nix.mount unit
               ansible.builtin.systemd_service:
                   name: nix.mount
                   state: started
