@@ -1,19 +1,24 @@
 ---
 - name: Disable IPv4 MTU Probing
   hosts: localhost
+  connection: local
   become: true
+  gather_facts: false
   tasks:
-      - name: Disable IPv4 MTU probing
+      - name: Remove MTU probing sysctl drop-in
+        ansible.builtin.file:
+            path: /etc/sysctl.d/90-um-mtu-probing.conf
+            state: absent
+
+      # older versions of this tweak wrote straight into /etc/sysctl.conf
+      - name: Remove legacy MTU probing entry from /etc/sysctl.conf
         ansible.posix.sysctl:
             name: net.ipv4.tcp_mtu_probing
-            value: 1
             state: absent
-            sysctl_set: yes
-            reload: yes
-  handlers:
-      - name: Reload sysctl
-        ansible.builtin.systemd:
-            name: systemd-sysctl
-            state: restarted
-            enabled: yes
-        become: true
+            reload: false
+
+      # removing the config doesn't touch the live value, reset it to the kernel default
+      - name: Reset IPv4 MTU probing to the kernel default
+        ansible.builtin.command:
+            cmd: sysctl -w net.ipv4.tcp_mtu_probing=0
+        changed_when: true

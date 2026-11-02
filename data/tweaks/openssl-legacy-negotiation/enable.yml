@@ -5,8 +5,16 @@
   hosts: localhost
   connection: local
   become: true
-  gather_facts: true
+  gather_facts: false
   tasks:
+      - name: Ensure OpenSSL drop-in directory exists
+        ansible.builtin.file:
+            path: /etc/pki/tls/openssl.d
+            state: directory
+            owner: root
+            group: root
+            mode: "0755"
+
       - name: Apply legacy negotiation settings
         ansible.builtin.copy:
             dest: /etc/pki/tls/openssl.d/legacy-negotiation.cnf
@@ -25,20 +33,20 @@
                 [system_default_sect]
                 Options = UnsafeLegacyRenegotiation
                 CipherString = DEFAULT@SECLEVEL=1
-        notify:
-            - "Restart wpa_supplicant"
-
-      - name: Check if wpa_supplicant service exists
-        ansible.builtin.service:
-            name: wpa_supplicant
-            state: started
-        register: wpa_service
-        ignore_errors: true
+        notify: Restart wpa_supplicant
 
   handlers:
-      - name: Restart wpa_supplicant
-        listen: "Restart wpa_supplicant"
-        when: wpa_service is not failed
-        ansible.builtin.service:
+      - name: Gather service facts
+        listen: Restart wpa_supplicant
+        ansible.builtin.service_facts:
+
+      # only bounce it if it's actually running, don't start it on systems that
+      # don't use it (or use iwd)
+      - name: Restart wpa_supplicant if running
+        listen: Restart wpa_supplicant
+        ansible.builtin.systemd_service:
             name: wpa_supplicant
             state: restarted
+        when:
+            - "'wpa_supplicant.service' in ansible_facts.services"
+            - ansible_facts.services['wpa_supplicant.service'].state == 'running'

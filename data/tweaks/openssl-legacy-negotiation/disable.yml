@@ -1,26 +1,26 @@
 ---
 - name: Remove OpenSSL Legacy Negotiation Settings
   hosts: localhost
+  connection: local
   become: true
+  gather_facts: false
   tasks:
       - name: Remove legacy negotiation settings file
         ansible.builtin.file:
             path: /etc/pki/tls/openssl.d/legacy-negotiation.cnf
             state: absent
-        notify:
-            - "Restart wpa_supplicant"
-
-      - name: Check if wpa_supplicant service exists
-        ansible.builtin.service:
-            name: wpa_supplicant
-            state: started
-        register: wpa_service
-        ignore_errors: true
+        notify: Restart wpa_supplicant
 
   handlers:
-      - name: Restart wpa_supplicant
-        listen: "Restart wpa_supplicant"
-        when: wpa_service is not failed
-        ansible.builtin.service:
+      - name: Gather service facts
+        listen: Restart wpa_supplicant
+        ansible.builtin.service_facts:
+
+      - name: Restart wpa_supplicant if running
+        listen: Restart wpa_supplicant
+        ansible.builtin.systemd_service:
             name: wpa_supplicant
             state: restarted
+        when:
+            - "'wpa_supplicant.service' in ansible_facts.services"
+            - ansible_facts.services['wpa_supplicant.service'].state == 'running'
