@@ -45,9 +45,7 @@
 
             - name: Make sure Fedora ARK kernel still installed
               ansible.builtin.dnf5:
-                  name:
-                      - kernel
-                      - kernel-devel-matched
+                  name: kernel
                   state: present
 
             - name: Remove CachyOS kernel default boot entry hook
@@ -85,9 +83,21 @@
               when: grubby_check.rc == 0
               changed_when: true
 
+            - name: "SELinux: Check whether loading kernel modules was allowed before enabling"
+              ansible.builtin.stat:
+                  path: /var/lib/um/tweaks/cachyos-kernel.selinux-was-on
+              register: kmod_was_on
+
             - name: "SELinux: Disallow loading kernel modules"
               ansible.posix.seboolean:
                   name: domain_kernel_load_modules
                   state: false
                   persistent: true
-              when: ansible_selinux.status == 'enabled'
+              when:
+                  - ansible_selinux.status == 'enabled'
+                  - not kmod_was_on.stat.exists
+
+            - name: "SELinux: Forget the previous state"
+              ansible.builtin.file:
+                  path: /var/lib/um/tweaks/cachyos-kernel.selinux-was-on
+                  state: absent

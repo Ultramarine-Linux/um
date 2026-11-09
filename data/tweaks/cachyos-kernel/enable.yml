@@ -68,6 +68,42 @@
                       enabled=1
                       enabled_metadata=1
 
+            - name: Check whether the CachyOS kernel is already installed  # noqa: command-instead-of-module
+              ansible.builtin.command:
+                  cmd: rpm -q --quiet kernel-cachyos
+              register: cachyos_installed
+              changed_when: false
+              failed_when: false
+
+            - name: "SELinux: Check whether loading kernel modules is already allowed"
+              ansible.builtin.command:
+                  cmd: getsebool domain_kernel_load_modules
+              register: kmod_boolean
+              changed_when: false
+              when: ansible_selinux.status == 'enabled'
+
+            # so disable.yml leaves it on if the user had it on before. Only on the
+            # first enable, otherwise a re-run would record our own change.
+            - name: "SELinux: Remember that loading kernel modules was already allowed"
+              when:
+                  - ansible_selinux.status == 'enabled'
+                  - cachyos_installed.rc != 0
+                  - kmod_boolean.stdout is search('--> on$')
+              block:
+                  - name: Ensure the um state directory exists
+                    ansible.builtin.file:
+                        path: /var/lib/um/tweaks
+                        state: directory
+                        owner: root
+                        group: root
+                        mode: "0755"
+
+                  - name: Write the marker
+                    ansible.builtin.copy:
+                        dest: /var/lib/um/tweaks/cachyos-kernel.selinux-was-on
+                        content: ""
+                        mode: "0644"
+
             - name: "SELinux: Allow loading kernel modules"
               ansible.posix.seboolean:
                   name: domain_kernel_load_modules

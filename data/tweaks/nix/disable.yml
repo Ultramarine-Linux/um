@@ -16,33 +16,47 @@
         register: root_fstype
         changed_when: false
 
-      - name: Ensure path in /tmp for storing installer
-        ansible.builtin.file:
-            path: /tmp/nix-installer-tweak/
-            state: directory
-            owner: root
-            group: root
-
-      - name: Get Determinate Systems Nix installer
-        ansible.builtin.get_url:
-            dest: /tmp/nix-installer-tweak/nix-installer.sh
-            url: https://install.determinate.systems/nix
-            mode: "0755"
-
-      # The uninstaller reads /nix/receipt.json to know what to tear down; with
-      # no receipt (Nix not installed, or already removed) it errors out, so skip
-      # it when the receipt is gone. The btrfs teardown below is idempotent on
-      # its own and still cleans up a leftover subvol/fstab entry either way.
+      # the uninstaller reads /nix/receipt.json to know what to tear down, and
+      # errors out without it (Nix not installed, or already removed). The btrfs
+      # teardown below is idempotent and still cleans up a leftover subvol/fstab
+      # entry either way.
       - name: Check whether Nix is installed
         ansible.builtin.stat:
             path: /nix/receipt.json
         register: nix_receipt
 
-      # Run the uninstaller while /nix is still mounted and populated --
-      # it reads /nix/receipt.json to know what to tear down.
+      # the installer copies itself to /nix/nix-installer, and that's the version
+      # that wrote the receipt, so prefer it over downloading the latest one
+      - name: Check for the installer that installed Nix
+        ansible.builtin.stat:
+            path: /nix/nix-installer
+        register: nix_installed_bin
+
+      - name: Download the Determinate Systems Nix installer
+        when:
+            - nix_receipt.stat.exists
+            - not nix_installed_bin.stat.exists
+        block:
+            - name: Ensure path in /tmp for storing installer
+              ansible.builtin.file:
+                  path: /tmp/nix-installer-tweak/
+                  state: directory
+                  owner: root
+                  group: root
+
+            - name: Get Determinate Systems Nix installer
+              ansible.builtin.get_url:
+                  dest: /tmp/nix-installer-tweak/nix-installer.sh
+                  url: https://install.determinate.systems/nix
+                  mode: "0755"
+
+      # run the uninstaller while /nix is still mounted and populated
       - name: Execute Uninstaller
-        ansible.builtin.shell:
-            cmd: /tmp/nix-installer-tweak/nix-installer.sh uninstall --no-confirm
+        ansible.builtin.command:
+            argv:
+                - "{{ '/nix/nix-installer' if nix_installed_bin.stat.exists else '/tmp/nix-installer-tweak/nix-installer.sh' }}"
+                - uninstall
+                - --no-confirm
         when: nix_receipt.stat.exists
 
       # Everything in here is btrfs-only. On other filesystems the uninstaller

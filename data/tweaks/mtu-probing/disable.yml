@@ -5,10 +5,16 @@
   become: true
   gather_facts: false
   tasks:
-      - name: Remove MTU probing sysctl drop-in
-        ansible.builtin.file:
-            path: /etc/sysctl.d/90-um-mtu-probing.conf
-            state: absent
+      # set it to 0 instead of removing the drop-in, since Ultramarine's desktop
+      # configs enable it in 50-mtu-probing.conf and that would win again on boot
+      - name: Disable IPv4 MTU probing
+        ansible.posix.sysctl:
+            name: net.ipv4.tcp_mtu_probing
+            value: "0"
+            sysctl_file: /etc/sysctl.d/90-um-mtu-probing.conf
+            state: present
+            sysctl_set: true
+            reload: true
 
       # older versions of this tweak wrote straight into /etc/sysctl.conf
       - name: Remove legacy MTU probing entry from /etc/sysctl.conf
@@ -16,9 +22,3 @@
             name: net.ipv4.tcp_mtu_probing
             state: absent
             reload: false
-
-      # removing the config doesn't touch the live value, reset it to the kernel default
-      - name: Reset IPv4 MTU probing to the kernel default
-        ansible.builtin.command:
-            cmd: sysctl -w net.ipv4.tcp_mtu_probing=0
-        changed_when: true

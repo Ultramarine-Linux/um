@@ -23,14 +23,17 @@
                 # This file is managed by Ultramarine Tweaks, manual changes will be overwritten.
                 # To disable this configuration, run `um tweaks disable openssl-legacy-negotiation`.
                 # see https://wiki.ultramarine-linux.org/en/usage/umcli/ for more information.
+
+                # this replaces openssl.cnf's ssl_conf, so pull the system crypto-policy back
+                # in and only override what legacy networks need on top of it
                 [openssl_init]
-                providers = provider_sect
-                ssl_conf = ssl_sect
+                ssl_conf = um_legacy_ssl
 
-                [ssl_sect]
-                system_default = system_default_sect
+                [um_legacy_ssl]
+                system_default = um_legacy_negotiation
 
-                [system_default_sect]
+                [um_legacy_negotiation]
+                .include = /etc/crypto-policies/back-ends/opensslcnf.config
                 Options = UnsafeLegacyRenegotiation
                 CipherString = DEFAULT@SECLEVEL=1
         notify: Restart wpa_supplicant
