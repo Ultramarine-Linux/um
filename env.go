@@ -112,7 +112,9 @@ func envInit(c *cli.Context) error {
 }
 
 func envBuild(c *cli.Context) error {
-	util.SudoIfNeeded([]string{})
+	if err := util.SudoIfNeeded([]string{}); err != nil {
+		return err
+	}
 	manifest, err := env.LoadEnvManifest()
 	if err != nil {
 		return err
@@ -152,7 +154,9 @@ func handleApplyLive(c *cli.Context) error {
 
 // add a package to the environment
 func envAddPackage(c *cli.Context) error {
-	util.SudoIfNeeded([]string{})
+	if err := util.SudoIfNeeded([]string{}); err != nil {
+		return err
+	}
 	manifest, err := env.LoadEnvManifest()
 	if err != nil {
 		return err
@@ -182,7 +186,9 @@ func envAddPackage(c *cli.Context) error {
 }
 
 func envRemovePackage(c *cli.Context) error {
-	util.SudoIfNeeded([]string{})
+	if err := util.SudoIfNeeded([]string{}); err != nil {
+		return err
+	}
 	manifest, err := env.LoadEnvManifest()
 	if err != nil {
 		return err
@@ -211,7 +217,9 @@ func envRemovePackage(c *cli.Context) error {
 }
 
 func envUpdate(c *cli.Context) error {
-	util.SudoIfNeeded([]string{})
+	if err := util.SudoIfNeeded([]string{}); err != nil {
+		return err
+	}
 
 	if err := envBuild(c); err != nil {
 		return err

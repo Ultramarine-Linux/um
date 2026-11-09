@@ -35,7 +35,9 @@ func experimentsToRows(exps []experiments.Experiment) [][]string {
 }
 
 func listExperiments(c *cli.Context) error {
-	util.SudoIfNeeded([]string{"UM_DATA"})
+	if err := util.SudoIfNeeded([]string{"UM_DATA"}); err != nil {
+		return err
+	}
 
 	exps, err := experiments.List()
 	if err != nil {
@@ -100,7 +102,9 @@ func enableExperiment(c *cli.Context) error {
 		return cli.Exit("An experiment id must be passed", 1)
 	}
 
-	util.SudoIfNeeded([]string{"UM_DATA"})
+	if err := util.SudoIfNeeded([]string{"UM_DATA"}); err != nil {
+		return err
+	}
 
 	exp, err := experiments.Find(c.Args().First())
 	if err != nil {
@@ -184,7 +188,9 @@ func disableExperiment(c *cli.Context) error {
 		return cli.Exit("An experiment id must be passed", 1)
 	}
 
-	util.SudoIfNeeded([]string{"UM_DATA"})
+	if err := util.SudoIfNeeded([]string{"UM_DATA"}); err != nil {
+		return err
+	}
 
 	exp, err := experiments.Find(c.Args().First())
 	if err != nil {

@@ -21,7 +21,9 @@ type bootcEditSpec struct {
 }
 
 func GetBootcImage() (string, error) {
-	util.SudoIfNeeded([]string{})
+	if err := util.SudoIfNeeded([]string{}); err != nil {
+		return "", err
+	}
 
 	// run `bootc edit` and pipe output
 	// which then gets parsed by YAML

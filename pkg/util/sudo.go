@@ -1,6 +1,7 @@
 package util
 
 import (
+	"fmt"
 	"os"
 	"os/exec"
 	"os/user"
@@ -21,6 +22,12 @@ func hasControllingTerminal() bool {
 	defer tty.Close()
 	pgrp, err := unix.IoctlGetInt(int(tty.Fd()), unix.TIOCGPGRP)
 	return err == nil && pgrp == unix.Getpgrp()
+}
+
+// CanPrompt reports whether um can ask the user for confirmation or a password
+// in the terminal
+func CanPrompt() bool {
+	return hasControllingTerminal()
 }
 
 // inAdminGroup reports whether the user is in wheel (or sudo on Debian-likes)
@@ -56,22 +63,24 @@ func sudoWithoutPassword() bool {
 	return inAdminGroup() && exec.Command("/usr/bin/sudo", "-n", "true").Run() == nil
 }
 
-// SudoIfNeeded re-executes um as root if it isn't already.
+// SudoIfNeeded re-executes um as root if it isn't already. It only returns if
+// um is already root (nil) or escalating failed.
 //
 // sudo is used when it can prompt or doesn't need a password, and forwardEnv is
 // passed through. Otherwise (e.g. from the Plasma KCMs) it uses pkexec for a
-// graphical polkit prompt. pkexec gets a clean environment and forwardEnv is
-// dropped, since wrapping um in `env` would stop the polkit action from
-// matching. pkexec exits 126 if the prompt is dismissed and 127 if
+// graphical polkit prompt. pkexec gets a clean environment, since wrapping um
+// in `env` would stop the polkit action from matching, so um refuses to use it
+// while any forwardEnv var is set rather than silently running as root against
+// different paths. pkexec exits 126 if the prompt is dismissed and 127 if
 // authorization fails.
-func SudoIfNeeded(forwardEnv []string) {
+func SudoIfNeeded(forwardEnv []string) error {
 	if os.Getuid() == 0 {
-		return
+		return nil
 	}
 
 	current, err := os.Executable()
 	if err != nil {
-		panic(err)
+		return err
 	}
 
 	sudoArgs := []string{"sudo"}
@@ -79,10 +88,13 @@ func SudoIfNeeded(forwardEnv []string) {
 		if sudoWithoutPassword() {
 			sudoArgs = append(sudoArgs, "-n")
 		} else if pkexec, err := exec.LookPath("pkexec"); err == nil {
-			args := append([]string{"pkexec", current}, os.Args[1:]...)
-			if err := unix.Exec(pkexec, args, os.Environ()); err != nil {
-				panic(err)
+			for _, v := range forwardEnv {
+				if _, found := os.LookupEnv(v); found {
+					return fmt.Errorf("%s is set, but pkexec would drop it. Run um from a terminal or unset it", v)
+				}
 			}
+			args := append([]string{"pkexec", current}, os.Args[1:]...)
+			return unix.Exec(pkexec, args, os.Environ())
 		}
 		// no pkexec either, so fall through to sudo, which errors out instead of hanging
 	}
@@ -99,7 +111,5 @@ func SudoIfNeeded(forwardEnv []string) {
 	args := append(sudoArgs, current)
 	args = append(args, os.Args[1:]...)
 
-	if err := unix.Exec("/usr/bin/sudo", args, os.Environ()); err != nil {
-		panic(err)
-	}
+	return unix.Exec("/usr/bin/sudo", args, os.Environ())
 }

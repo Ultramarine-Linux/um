@@ -367,9 +367,10 @@ func (t Tweak) runPlaybook(playbook string) error {
 // runChild runs cmd from the tweak directory, attached to um's stdio.
 //
 // um outlives the child so the lock is held for the whole run. SIGTERM/SIGHUP
-// (e.g. the KCM cancelling through pkexec) are forwarded to the child instead
-// of killing um. SIGINT is ignored since the terminal already sends it to the
-// child.
+// (e.g. relayed by sudo, or a terminal hangup) are forwarded to the child
+// instead of killing um. SIGINT is ignored since the terminal already sends it
+// to the child. Under pkexec um runs fully as root, so an unprivileged caller
+// like the KCM can't signal it at all.
 func (t Tweak) runChild(cmd *exec.Cmd) error {
 	cmd.Dir = t.Path
 	cmd.Stdin = os.Stdin
