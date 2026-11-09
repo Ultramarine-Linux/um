@@ -3,6 +3,8 @@ package util
 import (
 	"os"
 	"os/exec"
+	"os/user"
+	"strconv"
 
 	"golang.org/x/sys/unix"
 )
@@ -21,12 +23,37 @@ func hasControllingTerminal() bool {
 	return err == nil && pgrp == unix.Getpgrp()
 }
 
+// inAdminGroup reports whether the user is in wheel (or sudo on Debian-likes)
+func inAdminGroup() bool {
+	gids, err := os.Getgroups()
+	if err != nil {
+		return false
+	}
+	gids = append(gids, os.Getegid())
+	for _, name := range []string{"wheel", "sudo"} {
+		g, err := user.LookupGroup(name)
+		if err != nil {
+			continue
+		}
+		for _, gid := range gids {
+			if strconv.Itoa(gid) == g.Gid {
+				return true
+			}
+		}
+	}
+	return false
+}
+
 // sudoWithoutPassword reports whether sudo works without prompting (NOPASSWD
 // or cached credentials). It probes with `true`, so a NOPASSWD rule that covers
 // `true` but not um passes here and the real `sudo -n` fails. That setup is rare
 // enough to accept.
+//
+// the probe only runs for admin group members. For anyone else sudo would log
+// a "user NOT in sudoers" incident on every call, and pkexec is the right
+// choice anyway.
 func sudoWithoutPassword() bool {
-	return exec.Command("/usr/bin/sudo", "-n", "true").Run() == nil
+	return inAdminGroup() && exec.Command("/usr/bin/sudo", "-n", "true").Run() == nil
 }
 
 // SudoIfNeeded re-executes um as root if it isn't already.

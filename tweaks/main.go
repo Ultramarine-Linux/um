@@ -10,7 +10,6 @@ import (
 	"path/filepath"
 	"runtime"
 	"sort"
-	"strings"
 	"syscall"
 	"time"
 
@@ -143,7 +142,7 @@ func LoadTweakFromPath(path string) (*Tweak, error) {
 // ValidateID checks that id names a single entry in the tweaks directory, so it
 // can't load a tweak from elsewhere (e.g. `../../tmp/evil`) and run it as root
 func ValidateID(id string) error {
-	if id == "" || id == "." || id == ".." || id != filepath.Base(id) || strings.ContainsRune(id, os.PathSeparator) {
+	if id == "" || id == "." || id == ".." || id != filepath.Base(id) {
 		return fmt.Errorf("invalid tweak ID: %q", id)
 	}
 	return nil
@@ -361,19 +360,24 @@ func lock() (func(), error) {
 
 // runPlaybook runs a playbook from the tweak directory. A failing playbook
 // returns an *exec.ExitError carrying ansible's exit code.
-//
-// um outlives ansible so the lock is held for the whole run. SIGTERM/SIGHUP
-// (e.g. the KCM cancelling through pkexec) are forwarded to ansible instead of
-// killing um. SIGINT is ignored since the terminal already sends it to ansible.
 func (t Tweak) runPlaybook(playbook string) error {
-	cmd := exec.Command(ansiblePlaybook, "--connection=local", filepath.Join(t.Path, playbook))
+	return t.runChild(exec.Command(ansiblePlaybook, "--connection=local", filepath.Join(t.Path, playbook)))
+}
+
+// runChild runs cmd from the tweak directory, attached to um's stdio.
+//
+// um outlives the child so the lock is held for the whole run. SIGTERM/SIGHUP
+// (e.g. the KCM cancelling through pkexec) are forwarded to the child instead
+// of killing um. SIGINT is ignored since the terminal already sends it to the
+// child.
+func (t Tweak) runChild(cmd *exec.Cmd) error {
 	cmd.Dir = t.Path
 	cmd.Stdin = os.Stdin
 	cmd.Stdout = os.Stdout
 	cmd.Stderr = os.Stderr
-	// if um is killed outright, take ansible down too rather than leave it
+	// if um is killed outright, take the child down too rather than leave it
 	// running without the lock. Pdeathsig fires when the forking OS thread
-	// exits, so pin this goroutine to its thread until ansible is done.
+	// exits, so pin this goroutine to its thread until the child is done.
 	cmd.SysProcAttr = &syscall.SysProcAttr{Pdeathsig: syscall.SIGTERM}
 	runtime.LockOSThread()
 	defer runtime.UnlockOSThread()
@@ -450,11 +454,14 @@ func (t Tweak) Run() error {
 		return TweakTypeNotSupportedError(t.TweakType)
 	}
 
-	if err := os.Chdir(t.Path); err != nil {
+	// scripts take the lock too so they can't run alongside a playbook
+	unlock, err := lock()
+	if err != nil {
 		return err
 	}
-	script := filepath.Join(t.Path, "script.sh")
-	return unix.Exec(script, []string{script}, os.Environ())
+	defer unlock()
+
+	return t.runChild(exec.Command(filepath.Join(t.Path, "script.sh")))
 }
 
 // ListEntry is a tweak as printed by `um tweaks list --json`

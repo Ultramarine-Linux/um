@@ -19,8 +19,9 @@ var Envars = []string{
 	"UM_STATE",
 }
 
-// playbookExit passes ansible-playbook's exit code through instead of always exiting 1
-func playbookExit(err error) error {
+// childExit passes a failed playbook or script's exit code through instead of
+// always exiting 1
+func childExit(what string, err error) error {
 	var exitErr *exec.ExitError
 	if errors.As(err, &exitErr) && exitErr.ExitCode() > 0 {
 		code := exitErr.ExitCode()
@@ -28,7 +29,7 @@ func playbookExit(err error) error {
 		if code == 126 || code == 127 {
 			code = 1
 		}
-		return cli.Exit(fmt.Sprintf("ansible-playbook failed: %v", err), code)
+		return cli.Exit(fmt.Sprintf("%s failed: %v", what, err), code)
 	}
 	return err
 }
@@ -97,7 +98,6 @@ func enableTweak(c *cli.Context) error {
 	yesFlag := c.Bool("yes")
 
 	var confirm bool
-	// Confirm with the user if the tweak is provided but not stable or has a warning
 	if yesFlag {
 		confirm = true
 	} else {
@@ -120,14 +120,13 @@ func enableTweak(c *cli.Context) error {
 		}
 	}
 
-	// huh.Println("Enabling tweak:",
 	if !confirm {
 		fmt.Println("Aborting...")
 		return nil
 	}
 
 	if err := tweak.Enable(); err != nil {
-		return playbookExit(err)
+		return childExit("ansible-playbook", err)
 	}
 
 	return nil
@@ -175,7 +174,7 @@ func disableTweak(c *cli.Context) error {
 	}
 
 	if err := tweak.Disable(); err != nil {
-		return playbookExit(err)
+		return childExit("ansible-playbook", err)
 	}
 
 	return nil
@@ -229,5 +228,5 @@ func runTweak(c *cli.Context) error {
 		return nil
 	}
 
-	return tweak.Run()
+	return childExit("script.sh", tweak.Run())
 }

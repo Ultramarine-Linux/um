@@ -251,3 +251,29 @@ func TestSortedEntries(t *testing.T) {
 		t.Fatalf("unexpected entry: %+v", entries[1])
 	}
 }
+
+func TestRunScript(t *testing.T) {
+	t.Setenv("UM_STATE", t.TempDir())
+	tw := Tweak{TweakType: TweakTypeScript, Path: t.TempDir()}
+	script := filepath.Join(tw.Path, "script.sh")
+
+	writeScript(t, script, `[ "$PWD" = "`+tw.Path+`" ] || exit 9
+exit 3`)
+	err := tw.Run()
+	var exitErr *exec.ExitError
+	if !errors.As(err, &exitErr) || exitErr.ExitCode() != 3 {
+		t.Fatalf("expected the script's exit code 3, got %v", err)
+	}
+
+	writeScript(t, script, "exit 0")
+	if err := tw.Run(); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := os.Stat(filepath.Join(StatePath(), ".lock")); err != nil {
+		t.Fatalf("running a script should take the lock: %v", err)
+	}
+
+	if err := (Tweak{TweakType: TweakTypeToggle, Path: tw.Path}).Run(); err == nil {
+		t.Fatal("only script tweaks can be run")
+	}
+}
