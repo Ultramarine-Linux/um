@@ -7,12 +7,10 @@ import (
 	"golang.org/x/sys/unix"
 )
 
-// hasControllingTerminal reports whether sudo can prompt for a password: the
-// process has a controlling terminal and is in its foreground process group.
-// sudo prompts through /dev/tty rather than stdin, so redirected stdin
-// (`um ... </dev/null`) still counts. A terminal merely inherited by a GUI app
-// (e.g. System Settings launched from Konsole, possibly backgrounded) doesn't:
-// the prompt would land in the wrong place or stop um with SIGTTIN.
+// hasControllingTerminal reports whether sudo can prompt on /dev/tty, meaning
+// um is in the terminal's foreground process group. Redirected stdin still
+// counts. A terminal inherited by a GUI app (e.g. System Settings launched from
+// Konsole) doesn't, since the prompt would land in the wrong place or SIGTTIN um.
 func hasControllingTerminal() bool {
 	tty, err := os.OpenFile("/dev/tty", os.O_RDWR, 0)
 	if err != nil {
@@ -23,24 +21,22 @@ func hasControllingTerminal() bool {
 	return err == nil && pgrp == unix.Getpgrp()
 }
 
-// sudoWithoutPassword reports whether sudo can run without prompting, e.g.
-// because of a NOPASSWD rule or cached credentials. This probes with `true`,
-// so a NOPASSWD rule that covers `true` but not um passes here and the real
-// `sudo -n` then fails; that's an unusual enough setup to accept.
+// sudoWithoutPassword reports whether sudo works without prompting (NOPASSWD
+// or cached credentials). It probes with `true`, so a NOPASSWD rule that covers
+// `true` but not um passes here and the real `sudo -n` fails. That setup is rare
+// enough to accept.
 func sudoWithoutPassword() bool {
 	return exec.Command("/usr/bin/sudo", "-n", "true").Run() == nil
 }
 
 // SudoIfNeeded re-executes um as root if it isn't already.
 //
-// If sudo can be used (there's a terminal to prompt on, or sudo doesn't need
-// a password), it uses sudo and forwards forwardEnv. Otherwise (e.g. when
-// started by the Plasma KCMs) it uses pkexec, which shows a graphical polkit
-// prompt. pkexec runs um with a clean environment and forwardEnv is not
-// forwarded: wrapping um in `env` would stop the polkit action for /usr/bin/um
-// from matching, and not trusting the caller's environment is the point.
-// pkexec exits with 126 if the prompt is dismissed and 127 if authorization
-// fails.
+// sudo is used when it can prompt or doesn't need a password, and forwardEnv is
+// passed through. Otherwise (e.g. from the Plasma KCMs) it uses pkexec for a
+// graphical polkit prompt. pkexec gets a clean environment and forwardEnv is
+// dropped, since wrapping um in `env` would stop the polkit action from
+// matching. pkexec exits 126 if the prompt is dismissed and 127 if
+// authorization fails.
 func SudoIfNeeded(forwardEnv []string) {
 	if os.Getuid() == 0 {
 		return
@@ -61,8 +57,7 @@ func SudoIfNeeded(forwardEnv []string) {
 				panic(err)
 			}
 		}
-		// No pkexec either: fall through to sudo, which fails with a
-		// "terminal is required" error instead of hanging.
+		// no pkexec either, so fall through to sudo, which errors out instead of hanging
 	}
 
 	for _, v := range forwardEnv {

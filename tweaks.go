@@ -19,13 +19,12 @@ var Envars = []string{
 	"UM_STATE",
 }
 
-// playbookExit makes um exit with ansible-playbook's exit code when a playbook
-// fails, instead of always exiting with 1.
+// playbookExit passes ansible-playbook's exit code through instead of always exiting 1
 func playbookExit(err error) error {
 	var exitErr *exec.ExitError
 	if errors.As(err, &exitErr) && exitErr.ExitCode() > 0 {
 		code := exitErr.ExitCode()
-		// Frontends read 126/127 as pkexec's "dismissed"/"not authorized".
+		// frontends read 126/127 as pkexec's "dismissed"/"not authorized"
 		if code == 126 || code == 127 {
 			code = 1
 		}
@@ -35,8 +34,8 @@ func playbookExit(err error) error {
 }
 
 func listTweaks(c *cli.Context) error {
-	// Listing only reads metadata and world-readable state, so no escalation
-	// is needed. This lets GUI frontends query tweaks without a password prompt.
+	// listing only reads metadata and world-readable state, so GUI frontends
+	// can query tweaks without a password prompt
 	tweakList, err := tweaks.List()
 	if err != nil {
 		return err
@@ -76,7 +75,7 @@ func enableTweak(c *cli.Context) error {
 		return fmt.Errorf("Please provide a tweak ID to enable")
 	}
 	tweakID := c.Args().Get(0)
-	// Validate before escalating so bad input never reaches a password prompt.
+	// validate before escalating so bad input never reaches a password prompt
 	if err := tweaks.ValidateID(tweakID); err != nil {
 		return err
 	}
@@ -139,7 +138,7 @@ func disableTweak(c *cli.Context) error {
 		return fmt.Errorf("Please provide a tweak ID to disable")
 	}
 	tweakID := c.Args().Get(0)
-	// Validate before escalating so bad input never reaches a password prompt.
+	// validate before escalating so bad input never reaches a password prompt
 	if err := tweaks.ValidateID(tweakID); err != nil {
 		return err
 	}

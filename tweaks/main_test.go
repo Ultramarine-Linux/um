@@ -148,7 +148,7 @@ func TestCheckScript(t *testing.T) {
 		}
 	}
 
-	// When check.sh can't tell, the marker is used.
+	// when check.sh can't tell, the marker is used
 	writeScript(t, filepath.Join(dir, "check.sh"), "exit 100")
 	if err := tw.setEnabled(true); err != nil {
 		t.Fatal(err)
@@ -157,7 +157,7 @@ func TestCheckScript(t *testing.T) {
 		t.Fatal("an unknown check should fall back to the marker")
 	}
 
-	// check.sh wins over a stale marker.
+	// check.sh wins over a stale marker
 	writeScript(t, filepath.Join(dir, "check.sh"), "exit 1")
 	if err := tw.setEnabled(true); err != nil {
 		t.Fatal(err)
