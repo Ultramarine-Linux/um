@@ -143,7 +143,6 @@ func runCommand(name string, args ...string) error {
 }
 
 func systemVersionUpgrade(c *cli.Context) error {
-	// Elevate to root execution via your utility helper block early on
 	if err := util.SudoIfNeeded(UpgradeEnvars); err != nil {
 		return err
 	}

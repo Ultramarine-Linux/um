@@ -138,8 +138,8 @@ func TestCheckScript(t *testing.T) {
 	}{
 		{"exit 0", true, false},
 		{"exit 1", false, false},
-		{"exit 100", false, false}, // unknown: falls back to the (absent) marker
-		{"exit 2", false, true},    // shell/test(1) errors are reported
+		{"exit 100", false, false},
+		{"exit 2", false, true},
 	} {
 		writeScript(t, filepath.Join(dir, "check.sh"), tc.body)
 		enabled, err := tw.Enabled()
@@ -148,7 +148,6 @@ func TestCheckScript(t *testing.T) {
 		}
 	}
 
-	// when check.sh can't tell, the marker is used
 	writeScript(t, filepath.Join(dir, "check.sh"), "exit 100")
 	if err := tw.setEnabled(true); err != nil {
 		t.Fatal(err)
@@ -157,7 +156,6 @@ func TestCheckScript(t *testing.T) {
 		t.Fatal("an unknown check should fall back to the marker")
 	}
 
-	// check.sh wins over a stale marker
 	writeScript(t, filepath.Join(dir, "check.sh"), "exit 1")
 	if err := tw.setEnabled(true); err != nil {
 		t.Fatal(err)

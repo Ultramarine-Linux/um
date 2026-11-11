@@ -19,23 +19,19 @@ var Envars = []string{
 	"UM_STATE",
 }
 
-// childExit passes a failed playbook or script's exit code through instead of
-// always exiting 1
-func childExit(what string, err error) error {
+func passThroughExitCode(what string, err error) error {
 	var exitErr *exec.ExitError
 	if !errors.As(err, &exitErr) {
 		return err
 	}
 	code := exitErr.ExitCode()
-	// frontends read 126/127 as pkexec's "dismissed"/"not authorized". A child
-	// killed by a signal reports -1, which urfave/cli would turn into exit 255.
+	// 126/127 mean pkexec auth failure to frontends, and a signal kill (-1) would become 255
 	if code <= 0 || code == 126 || code == 127 {
 		code = 1
 	}
 	return cli.Exit(fmt.Sprintf("%s failed: %v", what, err), code)
 }
 
-// tweakIDArg returns the command's single tweak ID argument, validated
 func tweakIDArg(c *cli.Context) (string, error) {
 	if c.NArg() == 0 {
 		return "", cli.Exit("Please provide a tweak ID", 1)
@@ -50,16 +46,28 @@ func tweakIDArg(c *cli.Context) (string, error) {
 	return id, nil
 }
 
-// errNeedsYes is returned before escalating when a confirmation prompt would be
-// needed but can't be shown, so the user isn't asked to authenticate for nothing
-var errNeedsYes = cli.Exit("Not running in a terminal, pass --yes to confirm", 1)
+func escalateForTweak(c *cli.Context, needsConfirmation func(tweakID string) bool) (string, error) {
+	tweakID, err := tweakIDArg(c)
+	if err != nil {
+		return "", err
+	}
+	if !c.Bool("yes") && !util.CanPrompt() && needsConfirmation(tweakID) {
+		return "", cli.Exit("Not running in a terminal, pass --yes to confirm", 1)
+	}
+	return tweakID, util.SudoIfNeeded(Envars)
+}
+
+func alwaysConfirm(string) bool { return true }
+
+func hasWarning(tweakID string) bool {
+	tweak, err := tweaks.LoadTweakId(tweakID)
+	return err == nil && tweak.Warning != nil
+}
 
 func listTweaks(c *cli.Context) error {
 	if c.NArg() > 0 {
 		return cli.Exit(fmt.Sprintf("Unexpected argument %q. Flags must come before arguments", c.Args().First()), 1)
 	}
-	// listing only reads metadata and world-readable state, so GUI frontends
-	// can query tweaks without a password prompt
 	tweakList, err := tweaks.List()
 	if err != nil {
 		return err
@@ -95,15 +103,8 @@ func listTweaks(c *cli.Context) error {
 }
 
 func enableTweak(c *cli.Context) error {
-	// validate before escalating so bad input never reaches a password prompt
-	tweakID, err := tweakIDArg(c)
+	tweakID, err := escalateForTweak(c, alwaysConfirm)
 	if err != nil {
-		return err
-	}
-	if !c.Bool("yes") && !util.CanPrompt() {
-		return errNeedsYes
-	}
-	if err := util.SudoIfNeeded(Envars); err != nil {
 		return err
 	}
 
@@ -151,22 +152,15 @@ func enableTweak(c *cli.Context) error {
 	}
 
 	if err := tweak.Enable(); err != nil {
-		return childExit("ansible-playbook", err)
+		return passThroughExitCode("ansible-playbook", err)
 	}
 
 	return nil
 }
 
 func disableTweak(c *cli.Context) error {
-	// validate before escalating so bad input never reaches a password prompt
-	tweakID, err := tweakIDArg(c)
+	tweakID, err := escalateForTweak(c, alwaysConfirm)
 	if err != nil {
-		return err
-	}
-	if !c.Bool("yes") && !util.CanPrompt() {
-		return errNeedsYes
-	}
-	if err := util.SudoIfNeeded(Envars); err != nil {
 		return err
 	}
 
@@ -201,26 +195,15 @@ func disableTweak(c *cli.Context) error {
 	}
 
 	if err := tweak.Disable(); err != nil {
-		return childExit("ansible-playbook", err)
+		return passThroughExitCode("ansible-playbook", err)
 	}
 
 	return nil
 }
 
 func runTweak(c *cli.Context) error {
-	// validate before escalating so bad input never reaches a password prompt
-	tweakID, err := tweakIDArg(c)
+	tweakID, err := escalateForTweak(c, hasWarning)
 	if err != nil {
-		return err
-	}
-	// only tweaks with a warning ask for confirmation. Metadata is world-readable,
-	// so this can be checked before escalating.
-	if !c.Bool("yes") && !util.CanPrompt() {
-		if tweak, err := tweaks.LoadTweakId(tweakID); err == nil && tweak.Warning != nil {
-			return errNeedsYes
-		}
-	}
-	if err := util.SudoIfNeeded(Envars); err != nil {
 		return err
 	}
 
@@ -261,5 +244,5 @@ func runTweak(c *cli.Context) error {
 		return nil
 	}
 
-	return childExit("script.sh", tweak.Run())
+	return passThroughExitCode("script.sh", tweak.Run())
 }

@@ -9,26 +9,26 @@ import (
 	"github.com/urfave/cli/v2"
 )
 
-func TestChildExit(t *testing.T) {
+func TestPassThroughExitCode(t *testing.T) {
 	for _, tc := range []struct {
 		code, want int
 	}{
 		{3, 3},
-		{126, 1}, // reserved for pkexec's "dismissed"
-		{127, 1}, // reserved for pkexec's "not authorized"
-		{-1, 1},  // killed by a signal
+		{126, 1},
+		{127, 1},
+		{-1, 1},
 	} {
 		script := "exit " + strconv.Itoa(tc.code)
 		if tc.code < 0 {
 			script = "kill -TERM $$"
 		}
-		err := childExit("script.sh", exec.Command("/bin/sh", "-c", script).Run())
+		err := passThroughExitCode("script.sh", exec.Command("/bin/sh", "-c", script).Run())
 		var coder cli.ExitCoder
 		if !errors.As(err, &coder) || coder.ExitCode() != tc.want {
 			t.Errorf("exit %d: got %v, want exit code %d", tc.code, err, tc.want)
 		}
 	}
-	if err := childExit("script.sh", nil); err != nil {
+	if err := passThroughExitCode("script.sh", nil); err != nil {
 		t.Errorf("success should stay nil, got %v", err)
 	}
 }

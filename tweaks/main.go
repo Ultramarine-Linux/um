@@ -139,8 +139,6 @@ func LoadTweakFromPath(path string) (*Tweak, error) {
 	return &tweak, nil
 }
 
-// ValidateID checks that id names a single entry in the tweaks directory, so it
-// can't load a tweak from elsewhere (e.g. `../../tmp/evil`) and run it as root
 func ValidateID(id string) error {
 	if id == "" || id == "." || id == ".." || id != filepath.Base(id) {
 		return fmt.Errorf("invalid tweak ID: %q", id)
@@ -179,19 +177,13 @@ func List() (map[string]Tweak, error) {
 	return tweaks, nil
 }
 
-// StatePath returns the directory holding tweak state markers. Markers are
-// world-readable so unprivileged frontends (e.g. the Plasma Tweaks KCM) can show
-// which tweaks are enabled without escalating.
 func StatePath() string {
 	return filepath.Join(util.GetStateDir(), "tweaks")
 }
 
-// overridden by tests
 var ansiblePlaybook = "/usr/bin/ansible-playbook"
 
-// checkUnknownExitCode is what check.sh exits with when it can't tell, so the
-// state marker is used instead. It's not 2 because shells and test(1) use that
-// for errors, and a broken check.sh should be reported rather than ignored.
+// not 2, since shells and test(1) exit 2 on errors
 const checkUnknownExitCode = 100
 
 var errCheckUnknown = errors.New("check script could not determine the state")
@@ -210,13 +202,6 @@ func (t Tweak) checkScript() string {
 	return filepath.Join(t.Path, "check.sh")
 }
 
-// Enabled reports whether a toggle tweak is enabled or a oneshot tweak has been
-// applied. Script tweaks never have state.
-//
-// A check.sh, if present, is the source of truth, which also covers tweaks
-// enabled before um recorded state. Without one, or when it exits
-// checkUnknownExitCode, the marker written by Enable/Disable is used. An error
-// means the state is unknown, not that the tweak is disabled.
 func (t Tweak) Enabled() (bool, error) {
 	if t.TweakType == TweakTypeScript {
 		return false, nil
@@ -243,7 +228,6 @@ func (t Tweak) Enabled() (bool, error) {
 func (t Tweak) runCheck() (bool, error) {
 	ctx, cancel := context.WithTimeout(context.Background(), checkTimeout)
 	defer cancel()
-	// run through sh so a check.sh that lost its exec bit in packaging still works
 	cmd := exec.CommandContext(ctx, "/bin/sh", t.checkScript())
 	cmd.Dir = t.Path
 	cmd.Stderr = os.Stderr
@@ -263,16 +247,10 @@ func (t Tweak) runCheck() (bool, error) {
 	}
 }
 
-// ensureStateDir creates path if needed and checks it's safe for markers. It
-// must be a real directory, root-owned and not group/world-writable when
-// running as root (so UM_STATE can't point root at a caller-controlled
-// directory), and traversable by everyone. Modes from a restrictive umask are
-// fixed up.
 func ensureStateDir(path string) error {
 	if err := os.MkdirAll(path, 0755); err != nil {
 		return err
 	}
-	// check and chmod through one O_NOFOLLOW fd so a swapped-in symlink can't race us
 	f, err := os.OpenFile(path, os.O_RDONLY|syscall.O_DIRECTORY|syscall.O_NOFOLLOW, 0)
 	if err != nil {
 		return fmt.Errorf("state path %s must be a directory, not a symlink: %w", path, err)
@@ -314,13 +292,11 @@ func (t Tweak) setEnabled(enabled bool) error {
 		}
 		return nil
 	}
-	// never write through a symlink planted in the state dir
 	f, err := os.OpenFile(t.stateFile(), os.O_WRONLY|os.O_CREATE|syscall.O_NOFOLLOW, 0644)
 	if err != nil {
 		return err
 	}
-	// the umask (which sudo may carry over) filters the mode above, so set it
-	// explicitly for unprivileged frontends
+	// sudo may carry over a restrictive umask
 	if err := f.Chmod(0644); err != nil {
 		f.Close()
 		return err
@@ -328,14 +304,11 @@ func (t Tweak) setEnabled(enabled bool) error {
 	return f.Close()
 }
 
-// lock keeps concurrent um processes (e.g. the KCM and a terminal) from running
-// playbooks at the same time
 func lock() (func(), error) {
 	if err := ensureStateDirs(); err != nil {
 		return nil, err
 	}
-	// 0600 because flock works on read-only fds, so a world-readable lock file
-	// would let any user block um forever
+	// flock works on read-only fds, so other users must not be able to open this
 	f, err := os.OpenFile(filepath.Join(StatePath(), ".lock"), os.O_RDWR|os.O_CREATE|syscall.O_NOFOLLOW, 0600)
 	if err != nil {
 		return nil, err
@@ -358,27 +331,16 @@ func lock() (func(), error) {
 	}, nil
 }
 
-// runPlaybook runs a playbook from the tweak directory. A failing playbook
-// returns an *exec.ExitError carrying ansible's exit code.
 func (t Tweak) runPlaybook(playbook string) error {
 	return t.runChild(exec.Command(ansiblePlaybook, "--connection=local", filepath.Join(t.Path, playbook)))
 }
 
-// runChild runs cmd from the tweak directory, attached to um's stdio.
-//
-// um outlives the child so the lock is held for the whole run. SIGTERM/SIGHUP
-// (e.g. relayed by sudo, or a terminal hangup) are forwarded to the child
-// instead of killing um. SIGINT is ignored since the terminal already sends it
-// to the child. Under pkexec um runs fully as root, so an unprivileged caller
-// like the KCM can't signal it at all.
 func (t Tweak) runChild(cmd *exec.Cmd) error {
 	cmd.Dir = t.Path
 	cmd.Stdin = os.Stdin
 	cmd.Stdout = os.Stdout
 	cmd.Stderr = os.Stderr
-	// if um is killed outright, take the child down too rather than leave it
-	// running without the lock. Pdeathsig fires when the forking OS thread
-	// exits, so pin this goroutine to its thread until the child is done.
+	// the parent-death signal is tied to the thread that forked the child
 	cmd.SysProcAttr = &syscall.SysProcAttr{Pdeathsig: syscall.SIGTERM}
 	runtime.LockOSThread()
 	defer runtime.UnlockOSThread()
@@ -455,7 +417,6 @@ func (t Tweak) Run() error {
 		return TweakTypeNotSupportedError(t.TweakType)
 	}
 
-	// scripts take the lock too so they can't run alongside a playbook
 	unlock, err := lock()
 	if err != nil {
 		return err
@@ -465,20 +426,16 @@ func (t Tweak) Run() error {
 	return t.runChild(exec.Command(filepath.Join(t.Path, "script.sh")))
 }
 
-// ListEntry is a tweak as printed by `um tweaks list --json`
 type ListEntry struct {
 	ID          string `json:"id"`
 	Description string `json:"description"`
 	Type        string `json:"type"`
 	Stability   string `json:"stability,omitempty"`
 	Warning     string `json:"warning,omitempty"`
-	// always false for script tweaks, and means "applied" for oneshot tweaks
-	Enabled bool `json:"enabled"`
-	// set when the state couldn't be determined, in which case Enabled is meaningless
-	StateError string `json:"state_error,omitempty"`
+	Enabled     bool   `json:"enabled"`
+	StateError  string `json:"state_error,omitempty"`
 }
 
-// SortedEntries returns all tweaks as list entries, sorted by ID
 func SortedEntries(tweaks map[string]Tweak) []ListEntry {
 	entries := make([]ListEntry, 0, len(tweaks))
 	for id, t := range tweaks {
