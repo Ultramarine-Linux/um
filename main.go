@@ -20,6 +20,11 @@ var yesFlag = &cli.BoolFlag{
 	Usage:   "Automatically confirm without prompting",
 }
 
+var tweaksJSONFlag = &cli.BoolFlag{
+	Name:  "json",
+	Usage: "Output tweaks, including their enabled state, as JSON",
+}
+
 // TODO: pls refactor all of this mess
 
 func runCli() error {
@@ -67,6 +72,7 @@ func runCli() error {
 				Name:   "tweaks",
 				Usage:  "Manage Ultramarine tweaks, a set of optional system patches and configurations",
 				Action: listTweaks,
+				Flags:  []cli.Flag{tweaksJSONFlag},
 				Subcommands: []*cli.Command{
 					{
 						Name:    "enable",
@@ -97,11 +103,15 @@ func runCli() error {
 						Description: "This will run a script tweak. " +
 							"Script tweaks are one-time scripts that perform a specific action.",
 						Action: runTweak,
+						Flags: []cli.Flag{
+							yesFlag,
+						},
 					},
 					{
 						Name:   "list",
 						Usage:  "List all available Ultramarine tweaks",
 						Action: listTweaks,
+						Flags:  []cli.Flag{tweaksJSONFlag},
 					},
 				},
 			},

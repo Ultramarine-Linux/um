@@ -1,0 +1,22 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE policyconfig PUBLIC
+ "-//freedesktop//DTD polkit Policy Configuration 1.0//EN"
+ "http://www.freedesktop.org/software/polkit/policyconfig-1.dtd">
+<!-- SPDX-FileCopyrightText: 2026 Cypress Reed <cypress@fyralabs.com> -->
+<!-- SPDX-License-Identifier: GPL-3.0-only -->
+<policyconfig>
+  <vendor>Ultramarine Linux</vendor>
+  <vendor_url>https://ultramarine-linux.org</vendor_url>
+  <action id="org.ultramarine.um.tweaks">
+    <description>Manage system tweaks</description>
+    <message>Authentication is required to change system tweaks</message>
+    <icon_name>preferences-system</icon_name>
+    <defaults>
+      <allow_any>auth_admin</allow_any>
+      <allow_inactive>auth_admin</allow_inactive>
+      <allow_active>auth_admin_keep</allow_active>
+    </defaults>
+    <annotate key="org.freedesktop.policykit.exec.path">/usr/bin/um</annotate>
+    <annotate key="org.freedesktop.policykit.exec.argv1">tweaks</annotate>
+  </action>
+</policyconfig>

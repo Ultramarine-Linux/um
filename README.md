@@ -24,6 +24,20 @@ Ultramarine Tweak playbooks require the following Ansible collections as RPM pac
 
 - ansible-collection-ansible-posix
 
+Each tweak is a directory under `/usr/share/um/tweaks/<id>` with a `metadata.yml`
+and, depending on its type, `enable.yml`/`disable.yml` (toggle), `enable.yml`
+(oneshot) or `script.sh` (script).
+
+Toggle and oneshot tweaks may ship a `check.sh` that reports whether the tweak
+is enabled. It's run with `/bin/sh`, unprivileged (so `um tweaks list` never
+needs a password), from the tweak directory, and exits 0 if enabled, 1 if
+disabled, or 100 if it can't tell. Other codes are reported as errors. Without
+a `check.sh`, or when it exits 100, um uses the marker it writes to
+`/var/lib/um/tweaks/<id>.enabled` when the tweak is enabled through um.
+
+`um tweaks list --json` prints `{"version": 1, "tweaks": [...]}`. Entries have
+`state_error` set when their state couldn't be determined.
+
 ## Hacking
 ### Dev Containers
 
@@ -33,18 +47,18 @@ Ultramarine Tweak playbooks require the following Ansible collections as RPM pac
    - VSCode users need to install the Dev Containers extension
 
    - Podman users need to install `podman-docker` from their package manager
-   
+
 2. Open your IDE and select the "Reopen in Dev Container" option
 3. Use the Go toolchain as you normally would
-   
+
 ### Flox
 1. Get [Flox](https://flox.dev/docs/install-flox/install/)
 2. Clone and enter this repo
 3. Run `flox activate`
 4. Use the Go toolchain as you normally would
-   
+
 ### On the Host
-1. Install these packages (or equivalent on another distro)  
+1. Install these packages (or equivalent on another distro)
 ```
 golang
 ansible
