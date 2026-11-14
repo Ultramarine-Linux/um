@@ -1,3 +1,3 @@
-description: "Theme the GRUB boot menu with Ultramarine branding"
+description: "Theme the GRUB boot menu with Ultramarine branding (Light, Dark or Darker)"
 type: toggle
 stability: stable

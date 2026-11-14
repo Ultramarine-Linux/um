@@ -16,7 +16,7 @@ Ultramarine Tweak playbooks require the following packages:
 
 ```
 ansible-collection-ansible-posix
-grub2-distro-theme-nightly-ultramarine
+ultramarine-grub-theme
 ```
 
 ### 🛠️ Build Dependencies
@@ -55,6 +55,6 @@ flatpak
 flatpak-devel
 rpm-devel
 ansible-collection-ansible-posix
-grub2-distro-theme-nightly-ultramarine
+ultramarine-grub-theme
 ```
 2. Use the Go toolchain
