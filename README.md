@@ -24,6 +24,20 @@ Ultramarine Tweak playbooks require the following Ansible collections as RPM pac
 
 - ansible-collection-ansible-posix
 
+Each tweak is a directory under `/usr/share/um/tweaks/<id>` with a `metadata.yml`
+and, depending on its type, `enable.yml`/`disable.yml` (toggle), `enable.yml`
+(oneshot) or `script.sh` (script).
+
+Toggle and oneshot tweaks may ship a `check.sh` that reports whether the tweak
+is enabled. It's run with `/bin/sh`, unprivileged (so `um tweaks list` never
+needs a password), from the tweak directory, and exits 0 if enabled, 1 if
+disabled, or 100 if it can't tell. Other codes are reported as errors. Without
+a `check.sh`, or when it exits 100, um uses the marker it writes to
+`/var/lib/um/tweaks/<id>.enabled` when the tweak is enabled through um.
+
+`um tweaks list --json` prints `{"version": 1, "tweaks": [...]}`. Entries have
+`state_error` set when their state couldn't be determined.
+
 ## Hacking
 ### Dev Containers
 
