@@ -1,0 +1,81 @@
+---
+# bootc/image mode: the kernel lives in the image, so instead of dnf we move
+# the system to (or away from) the `-cachyos` tier2 variant of the current
+# image, e.g. ghcr.io/ultramarine-linux/plasma-bootc:44 <-> :44-cachyos.
+#
+# Vars:
+#   cachyos_enable: true to switch to the CachyOS image, false to switch back
+
+- name: Get bootc status
+  ansible.builtin.command:
+      cmd: bootc status --format=json
+  register: bootc_status_raw
+  changed_when: false
+
+- name: Parse bootc status
+  ansible.builtin.set_fact:
+      bootc_spec_image: "{{ (bootc_status_raw.stdout | from_json).spec.image | default(none) }}"
+
+- name: Ensure this system is managed by bootc
+  ansible.builtin.assert:
+      that:
+          - bootc_spec_image is not none
+      fail_msg: This system is not tracking a bootc image, so it can't be switched to the CachyOS variant.
+
+# `um env` systems track localhost/um-env, which is built FROM the real image.
+# Retarget the FROM line instead of switching away from the local derivation.
+- name: Retarget the um env derivation
+  when: bootc_spec_image.image is search('^(localhost/)?um-env(:|$)')
+  block:
+      - name: Read um env Containerfile
+        ansible.builtin.slurp:
+            src: /var/um/env/Containerfile
+        register: um_env_containerfile
+
+      - name: Find the base image of the um env derivation
+        ansible.builtin.set_fact:
+            cachyos_current_ref: >-
+                {{ (um_env_containerfile.content | b64decode)
+                   | regex_search('(?m)^FROM\s+(\S+)', '\1') | first }}
+
+      - name: Compute target image
+        ansible.builtin.include_tasks: target-ref.yml
+
+      - name: Update FROM in the um env Containerfile
+        ansible.builtin.replace:
+            path: /var/um/env/Containerfile
+            regexp: '(?m)^FROM\s+{{ cachyos_current_ref | regex_escape }}\s*$'
+            replace: "FROM {{ cachyos_target_ref }}"
+        when: cachyos_target_ref != cachyos_current_ref
+
+      - name: Tell the user to rebuild
+        ansible.builtin.debug:
+            msg: >-
+                Your um env derivation now builds from {{ cachyos_target_ref }}.
+                Run `um env update` and reboot to apply it.
+
+- name: Switch the bootc image
+  when: bootc_spec_image.image is not search('^(localhost/)?um-env(:|$)')
+  block:
+      - name: Use the image bootc is tracking
+        ansible.builtin.set_fact:
+            cachyos_current_ref: "{{ bootc_spec_image.image }}"
+
+      - name: Compute target image
+        ansible.builtin.include_tasks: target-ref.yml
+
+      - name: Switch to {{ cachyos_target_ref }} (this downloads a full image, it can take a while)
+        ansible.builtin.command:
+            argv:
+                - bootc
+                - switch
+                - "--transport={{ bootc_spec_image.transport | default('registry') }}"
+                - "{{ cachyos_target_ref }}"
+        when: cachyos_target_ref != cachyos_current_ref
+        changed_when: true
+
+      - name: Tell the user to reboot
+        ansible.builtin.debug:
+            msg: >-
+                {{ cachyos_target_ref }} is staged. Reboot to boot into it.
+        when: cachyos_target_ref != cachyos_current_ref

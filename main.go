@@ -20,6 +20,11 @@ var yesFlag = &cli.BoolFlag{
 	Usage:   "Automatically confirm without prompting",
 }
 
+var tweaksJSONFlag = &cli.BoolFlag{
+	Name:  "json",
+	Usage: "Output tweaks, including their enabled state, as JSON",
+}
+
 // TODO: pls refactor all of this mess
 
 func runCli() error {
@@ -43,15 +48,15 @@ func runCli() error {
 				},
 			},
 			{
-				Name:	"system-version-upgrade",
-				Usage:	"Upgrade your system to the next major release",
+				Name:        "system-version-upgrade",
+				Usage:       "Upgrade your system to the next major release",
 				Description: "Wraps DNF system upgrade logic to transition securely to a new release version.",
-				Action:	systemVersionUpgrade,
+				Action:      systemVersionUpgrade,
 				Flags: []cli.Flag{
 					&cli.BoolFlag{
-						Name:	"yes",
+						Name:    "yes",
 						Aliases: []string{"y"},
-						Usage:	"Automatically accept the upgrade without prompts, same behavior as dnf's --assumeyes",
+						Usage:   "Automatically accept the upgrade without prompts, same behavior as dnf's --assumeyes",
 					},
 					&cli.BoolFlag{
 						Name:  "check",
@@ -67,6 +72,7 @@ func runCli() error {
 				Name:   "tweaks",
 				Usage:  "Manage Ultramarine tweaks, a set of optional system patches and configurations",
 				Action: listTweaks,
+				Flags:  []cli.Flag{tweaksJSONFlag},
 				Subcommands: []*cli.Command{
 					{
 						Name:    "enable",
@@ -97,11 +103,15 @@ func runCli() error {
 						Description: "This will run a script tweak. " +
 							"Script tweaks are one-time scripts that perform a specific action.",
 						Action: runTweak,
+						Flags: []cli.Flag{
+							yesFlag,
+						},
 					},
 					{
 						Name:   "list",
 						Usage:  "List all available Ultramarine tweaks",
 						Action: listTweaks,
+						Flags:  []cli.Flag{tweaksJSONFlag},
 					},
 				},
 			},
@@ -119,17 +129,17 @@ func runCli() error {
 						},
 					},
 					{
-						Name:   "build",
-						Usage:  "Build the local derivation from a Containerfile",
+						Name:    "build",
+						Usage:   "Build the local derivation from a Containerfile",
 						Aliases: []string{"b"},
-						Action: envBuild,
+						Action:  envBuild,
 					},
 					{
 						Name:     "add",
 						Usage:    "Add a package to the environment",
 						Action:   envAddPackage,
 						Category: envPMHelperCategory,
-						Aliases: []string{"install", "i", "a", "in"},
+						Aliases:  []string{"install", "i", "a", "in"},
 						Flags: []cli.Flag{
 							envApplyLiveFlag,
 						},
@@ -138,7 +148,7 @@ func runCli() error {
 						Name:     "remove",
 						Usage:    "Remove a package from the environment",
 						Action:   envRemovePackage,
-						Aliases: []string{"uninstall", "rm", "r"},
+						Aliases:  []string{"uninstall", "rm", "r"},
 						Category: envPMHelperCategory,
 						Flags: []cli.Flag{
 							envApplyLiveFlag,

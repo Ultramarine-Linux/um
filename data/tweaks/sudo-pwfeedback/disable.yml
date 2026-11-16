@@ -3,8 +3,9 @@
   hosts: localhost
   connection: local
   become: true
+  gather_facts: false
   tasks:
-    - name: Remove drop-in file for sudoers
-      ansible.builtin.file:
-        path: /etc/sudoers.d/pwfeedback
-        state: absent
+      - name: Remove drop-in file for sudoers
+        ansible.builtin.file:
+            path: /etc/sudoers.d/pwfeedback
+            state: absent

@@ -1,7 +1,11 @@
 package main
 
 import (
+	"encoding/json"
+	"errors"
 	"fmt"
+	"os"
+	"os/exec"
 
 	"github.com/Ultramarine-Linux/um/pkg/util"
 	"github.com/Ultramarine-Linux/um/tweaks"
@@ -12,27 +16,86 @@ import (
 var Envars = []string{
 	"UM_TWEAKS_PATH",
 	"UM_DATA",
+	"UM_STATE",
+}
+
+func passThroughExitCode(what string, err error) error {
+	var exitErr *exec.ExitError
+	if !errors.As(err, &exitErr) {
+		return err
+	}
+	code := exitErr.ExitCode()
+	// 126/127 mean pkexec auth failure to frontends, and a signal kill (-1) would become 255
+	if code <= 0 || code == 126 || code == 127 {
+		code = 1
+	}
+	return cli.Exit(fmt.Sprintf("%s failed: %v", what, err), code)
+}
+
+func tweakIDArg(c *cli.Context) (string, error) {
+	if c.NArg() == 0 {
+		return "", cli.Exit("Please provide a tweak ID", 1)
+	}
+	if c.NArg() > 1 {
+		return "", cli.Exit(fmt.Sprintf("Unexpected argument %q. Flags must come before the tweak ID", c.Args().Get(1)), 1)
+	}
+	id := c.Args().First()
+	if err := tweaks.ValidateID(id); err != nil {
+		return "", err
+	}
+	return id, nil
+}
+
+func escalateForTweak(c *cli.Context, needsConfirmation func(tweakID string) bool) (string, error) {
+	tweakID, err := tweakIDArg(c)
+	if err != nil {
+		return "", err
+	}
+	if !c.Bool("yes") && !util.CanPrompt() && needsConfirmation(tweakID) {
+		return "", cli.Exit("Not running in a terminal, pass --yes to confirm", 1)
+	}
+	return tweakID, util.SudoIfNeeded(Envars)
+}
+
+func alwaysConfirm(string) bool { return true }
+
+func hasWarning(tweakID string) bool {
+	tweak, err := tweaks.LoadTweakId(tweakID)
+	return err == nil && tweak.Warning != nil
 }
 
 func listTweaks(c *cli.Context) error {
-	util.SudoIfNeeded(Envars)
-	tweaks, err := tweaks.List()
+	if c.NArg() > 0 {
+		return cli.Exit(fmt.Sprintf("Unexpected argument %q. Flags must come before arguments", c.Args().First()), 1)
+	}
+	tweakList, err := tweaks.List()
 	if err != nil {
 		return err
 	}
 
-	for name, tweak := range tweaks {
-		fmt.Printf("- ID: %s\n", name)
-		if tweak.Description != nil {
-			fmt.Printf("  Description: %s\n", *tweak.Description)
+	entries := tweaks.SortedEntries(tweakList)
+
+	if c.Bool("json") {
+		return json.NewEncoder(os.Stdout).Encode(struct {
+			Version int                `json:"version"`
+			Tweaks  []tweaks.ListEntry `json:"tweaks"`
+		}{1, entries})
+	}
+
+	for _, tweak := range entries {
+		fmt.Printf("- ID: %s\n", tweak.ID)
+		if tweak.Description != "" {
+			fmt.Printf("  Description: %s\n", tweak.Description)
 		}
-		fmt.Printf("  Type: %s\n", tweak.TweakType)
-		if tweak.Stability != nil {
-			fmt.Printf("  Stability: %s\n", tweak.Stability.String())
+		fmt.Printf("  Type: %s\n", tweak.Type)
+		if tweak.Stability != "" {
+			fmt.Printf("  Stability: %s\n", tweak.Stability)
 		}
-		// if tweak.Warning != nil {
-		// 	fmt.Printf("  Warning: %s\n", *tweak.Warning)
-		// }
+		if tweak.StateError != "" {
+			fmt.Printf("  Enabled: unknown (%s)\n", tweak.StateError)
+		} else if tweak.Type != "script" {
+			fmt.Printf("  Enabled: %t\n", tweak.Enabled)
+		}
 		fmt.Println()
 	}
 
@@ -40,11 +103,10 @@ func listTweaks(c *cli.Context) error {
 }
 
 func enableTweak(c *cli.Context) error {
-	util.SudoIfNeeded(Envars)
-	if c.Args().Len() < 1 {
-		return fmt.Errorf("Please provide a tweak ID to enable")
+	tweakID, err := escalateForTweak(c, alwaysConfirm)
+	if err != nil {
+		return err
 	}
-	tweakID := c.Args().Get(0)
 
 	tweak, err := tweaks.LoadTweakId(tweakID)
 	if err != nil {
@@ -62,7 +124,6 @@ func enableTweak(c *cli.Context) error {
 	yesFlag := c.Bool("yes")
 
 	var confirm bool
-	// Confirm with the user if the tweak is provided but not stable or has a warning
 	if yesFlag {
 		confirm = true
 	} else {
@@ -85,25 +146,23 @@ func enableTweak(c *cli.Context) error {
 		}
 	}
 
-	// huh.Println("Enabling tweak:",
 	if !confirm {
 		fmt.Println("Aborting...")
 		return nil
 	}
 
 	if err := tweak.Enable(); err != nil {
-		return err
+		return passThroughExitCode("ansible-playbook", err)
 	}
 
 	return nil
 }
 
 func disableTweak(c *cli.Context) error {
-	util.SudoIfNeeded(Envars)
-	if c.Args().Len() < 1 {
-		return fmt.Errorf("Please provide a tweak ID to disable")
+	tweakID, err := escalateForTweak(c, alwaysConfirm)
+	if err != nil {
+		return err
 	}
-	tweakID := c.Args().Get(0)
 
 	tweak, err := tweaks.LoadTweakId(tweakID)
 	if err != nil {
@@ -136,19 +195,17 @@ func disableTweak(c *cli.Context) error {
 	}
 
 	if err := tweak.Disable(); err != nil {
-		return err
+		return passThroughExitCode("ansible-playbook", err)
 	}
 
 	return nil
 }
 
 func runTweak(c *cli.Context) error {
-	if c.NArg() < 1 {
-		return cli.Exit("A tweak ID must be passed", 1)
+	tweakID, err := escalateForTweak(c, hasWarning)
+	if err != nil {
+		return err
 	}
-	tweakID := c.Args().First()
-
-	util.SudoIfNeeded(Envars)
 
 	tweak, err := tweaks.LoadTweakId(tweakID)
 	if err != nil {
@@ -187,5 +244,5 @@ func runTweak(c *cli.Context) error {
 		return nil
 	}
 
-	return tweak.Run()
+	return passThroughExitCode("script.sh", tweak.Run())
 }
