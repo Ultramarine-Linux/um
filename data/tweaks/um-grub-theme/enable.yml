@@ -1,0 +1,49 @@
+---
+- name: Enable Ultramarine GRUB theme
+  hosts: localhost
+  connection: local
+  become: true
+  gather_facts: false
+  vars:
+      themes:
+          "1": ultramarine-grub-theme-light
+          "2": ultramarine-grub-theme-dark
+          "3": ultramarine-grub-theme-darker
+  tasks:
+      - name: Choose a theme
+        ansible.builtin.pause:
+            prompt: |
+                1) Light
+                2) Dark
+                3) Darker
+                Choose a theme (1, 2, or 3)
+        register: choice
+        until: choice.user_input | trim in themes
+        delay: 0
+
+      - name: Remove conflicting themes
+        ansible.builtin.dnf:
+            name: "{{ themes.values() | reject('eq', themes[choice.user_input | trim]) }}"
+            state: absent
+
+      - name: Install selected theme
+        ansible.builtin.dnf:
+            name: "{{ themes[choice.user_input | trim] }}"
+            state: present
+
+      - name: Use graphical terminal output
+        ansible.builtin.lineinfile:
+            path: /etc/default/grub
+            regexp: "^#?GRUB_TERMINAL_OUTPUT="
+            line: 'GRUB_TERMINAL_OUTPUT="gfxterm"'
+
+      - name: Comment out GRUB_THEME override
+        ansible.builtin.lineinfile:
+            path: /etc/default/grub
+            regexp: '^(GRUB_THEME=.*)$'
+            line: '#\1'
+            backrefs: true
+
+      - name: Regenerate GRUB config
+        ansible.builtin.command:
+            cmd: grub2-mkconfig -o /boot/grub2/grub.cfg
