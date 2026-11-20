@@ -1,0 +1,3 @@
+description: "Set Terra repository to FyraLabs (fix bad mirrors)"
+type: toggle
+stability: stable

@@ -1,0 +1,21 @@
+---
+- name: Revert Terra repository back to metalink mirrors
+  hosts: localhost
+  connection: local
+  become: true
+  tasks:
+    - name: Revert Terra repository back to metalink mirrors
+      ansible.builtin.file:
+        notify:
+            - Expire DNF metadata cache
+            - Refresh DNF metadata
+        path: /etc/yum.repos.d/terra-fyralabs-all.repo
+        state: absent
+  handlers:
+    - name: Expire DNF metadata cache
+      ansible.builtin.command:
+        cmd: dnf clean expire-cache
+    - name: Refresh DNF metadata
+      ansible.builtin.dnf:
+        update_cache: true
+        state: present
